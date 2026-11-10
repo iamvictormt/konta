@@ -1,0 +1,112 @@
+.brand {
+  justify-content: center;
+  gap: 0;
+  padding: 2px 4px 26px;
+}
+
+.brand-logo-frame {
+  position: relative;
+  flex: none;
+  width: 100%;
+  max-width: 204px;
+  aspect-ratio: 3.55;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #06472f;
+}
+
+.sidebar-head .brand-logo-frame {
+  border-radius: 0;
+  background: transparent;
+}
+
+.brand-logo-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.brand-mark {
+  display: none;
+}
+
+.mobile-brand-frame {
+  display: none;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 35px;
+}
+
+.auth-brand > div:last-child {
+  display: block;
+}
+
+.auth-logo-frame {
+  width: min(100%, 250px);
+  max-width: 250px;
+  border-radius: 12px;
+  box-shadow: 0 14px 28px #042d2030;
+}
+
+.auth-loading .auth-logo-frame {
+  margin-bottom: 4px;
+}
+
+.hero-image {
+  z-index: -2;
+  object-fit: cover;
+  object-position: center 56%;
+}
+
+.hero:before {
+  background: linear-gradient(90deg, #fffdf7 0%, #fffdf7e8 25%, #fffdf760 43%, transparent 68%);
+}
+
+.hero-date {
+  padding: 6px 9px;
+  border-radius: 999px;
+  color: white;
+  background: #063e31b8;
+  backdrop-filter: blur(8px);
+}
+
+@media (max-width: 650px) {
+  .mobile-brand-frame {
+    display: block;
+    width: 68px;
+    max-width: 68px;
+    border-radius: 6px;
+  }
+
+  .topbar-left,
+  .topbar-right {
+    gap: 6px;
+  }
+
+  .hero-image {
+    object-position: center 53%;
+  }
+
+  .hero:before {
+    background: linear-gradient(90deg, #fffdf7 0%, #fffdf7e8 40%, #fffdf780 64%, transparent 100%);
+  }
+}
+
+@media (max-width: 360px) {
+  .mobile-brand-frame {
+    width: 48px;
+    max-width: 48px;
+  }
+
+  .store-select {
+    gap: 6px;
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+}
