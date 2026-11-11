@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { admin } from "better-auth/plugins";
 import { defaultAc } from "better-auth/plugins/admin/access";
 import { database } from "./db";
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "../password-policy";
 
 const storeAdministratorRole = defaultAc.newRole({ user: [], session: [] });
 const collaboratorRole = defaultAc.newRole({ user: [], session: [] });
@@ -22,9 +23,10 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     disableSignUp: true,
-    minPasswordLength: 12,
-    maxPasswordLength: 128,
+    minPasswordLength: MIN_PASSWORD_LENGTH,
+    maxPasswordLength: MAX_PASSWORD_LENGTH,
   },
+  disabledPaths: ["/change-email", "/verify-email", "/send-verification-email"],
   session: {
     expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,

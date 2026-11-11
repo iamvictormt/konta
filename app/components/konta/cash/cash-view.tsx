@@ -69,13 +69,24 @@ export function CashView({ sessions, sales, expenses, cashBalance, onOpenSession
     {selectedSession && <div className="cash-summary cash-summary--session"><div className="panel cash-stat"><span>Fundo inicial</span><strong>{money(selectedSession.openingAmount)}</strong></div><div className="panel cash-stat"><span>Entradas da sessão</span><strong>{money(totalSales)}</strong></div><div className="panel cash-stat"><span>Despesas da sessão</span><strong>{money(totalExpenses)}</strong></div><div className="panel cash-stat"><span>{activeSession ? "Saldo esperado" : "Saldo no fecho"}</span><strong>{money(displayedBalance)}</strong></div></div>}
 
     <section className="panel cash-session-section">
-      <div className="panel-header"><div><h2 className="panel-title"><span className="panel-title-icon"><Icon name="receipt" size={18} /></span>Movimentos {activeSession ? "da sessão actual" : selectedSession ? "da última sessão" : "de caixa"}</h2><p className="panel-subtitle">{selectedSession ? `Sessão iniciada ${dayLabel(new Date(selectedSession.openedAt), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : "Os lançamentos ficam agrupados por sessão e dispositivo."}</p></div>{selectedSession && <span className={`cash-session-status ${selectedSession.status === "open" ? "open" : selectedSession.syncState}`}>{sessionStatus(selectedSession)}</span>}</div>
+      <div className="panel-header">
+        <div>
+          <h2 className="panel-title"><span className="panel-title-icon"><Icon name="receipt" size={18} /></span>{!selectedSession || activeSession ? "Movimentos de caixa" : "Movimentos do último caixa"}</h2>
+          <p className="panel-subtitle">{selectedSession ? `Caixa aberto em ${dayLabel(new Date(selectedSession.openedAt), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : "Consulte as vendas e despesas de cada abertura de caixa."}</p>
+        </div>
+        {selectedSession && <span className={`cash-session-status ${selectedSession.status === "open" ? "open" : selectedSession.syncState}`}>{sessionStatus(selectedSession)}</span>}
+      </div>
       <div className="activity-list">{movements.map((item) => <ActivityRow key={item.id} item={item} />)}{movements.length === 0 && <div className="empty-row cash-empty-state">{selectedSession ? "Ainda não há movimentos nesta sessão." : "Abra uma sessão para começar a registar vendas e despesas."}</div>}</div>
     </section>
 
     <section className="panel cash-session-section cash-history-section">
-      <div className="panel-header"><div><h2 className="panel-title">Sessões recentes</h2><p className="panel-subtitle">Histórico deste dispositivo e reconciliação de fecho.</p></div></div>
-      {sessions.length === 0 ? <div className="empty-row cash-empty-state cash-history-empty">Ainda não há sessões de caixa neste dispositivo.</div> : <div className="cash-history-list">{sessions.slice(0, 8).map((session) => {
+      <div className="panel-header">
+        <div>
+          <h2 className="panel-title"><span className="panel-title-icon"><Icon name="clock" size={18} /></span>Histórico de caixa</h2>
+          <p className="panel-subtitle">Aberturas e fechos recentes neste dispositivo.</p>
+        </div>
+      </div>
+      {sessions.length === 0 ? <div className="empty-row cash-empty-state cash-history-empty">Ainda não há aberturas de caixa neste dispositivo.</div> : <div className="cash-history-list">{sessions.slice(0, 8).map((session) => {
         const sessionSaleTotal = sales.filter((sale) => sale.cashSessionId === session.id).reduce((sum, sale) => sum + sale.total, 0);
         const sessionExpenseTotal = expenses.filter((expense) => expense.cashSessionId === session.id).reduce((sum, expense) => sum + expense.amount, 0);
         const expected = session.openingAmount + sessionSaleTotal - sessionExpenseTotal;

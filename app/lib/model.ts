@@ -11,6 +11,8 @@ export type Product = {
   price: number;
   cost: number;
   emoji: string;
+  active?: boolean;
+  imageUrl?: string;
 };
 
 export type SaleLine = {

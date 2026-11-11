@@ -1,8 +1,9 @@
+import { ProductThumbnail } from "../products/product-thumbnail";
 import Icon from "../../ui-icon";
 import CustomSelect from "../../ui/custom-select";
 import type { Product } from "../../../lib/model";
 import { compactMoney, greeting, money, percentChange } from "../format";
-import type { Activity, ChartRange, ModalKind, Section } from "../types";
+import type { Activity, ChartRange, Section } from "../types";
 import { ActivityRow } from "../shared/activity-row";
 import { ChartPanel } from "../shared/chart-panel";
 
@@ -19,12 +20,14 @@ function Change({ value, reference, empty }: { value: number | null; reference: 
 }
 
 export function DashboardView({
-  now, userName, canManageProducts, products, salesTotal, yesterdaySalesTotal, totalItems, cashBalance, cashSessionOpen, chartData, chartMax, chartTotal, previousChartTotal, topProduct, chartRange, onRangeChange, chartProduct, onProductChange, activity, onSectionChange, onOpenModal,
+  now, userName, canManageProducts, products, salesTotal, yesterdaySalesTotal, totalItems, cashBalance, cashSessionOpen, chartData, chartMax, chartTotal, previousChartTotal, topProduct, chartRange, onRangeChange, chartProduct, onProductChange, activity, onSectionChange, onAddProduct, onAddExpense,
 }: {
   now: Date | null; userName: string; canManageProducts: boolean; products: Product[]; salesTotal: number; yesterdaySalesTotal: number; totalItems: number; cashBalance: number; cashSessionOpen: boolean;
   chartData: Array<{ label: string; value: number }>; chartMax: number; chartTotal: number; previousChartTotal: number; topProduct: { product: Product; units: number } | null;
   chartRange: ChartRange; onRangeChange: (range: ChartRange) => void; chartProduct: string; onProductChange: (productId: string) => void; activity: Activity[];
-  onSectionChange: (section: Section) => void; onOpenModal: (modal: ModalKind) => void;
+  onSectionChange: (section: Section) => void;
+  onAddProduct: () => void;
+  onAddExpense: () => void;
 }) {
   const labels = PERIOD_LABELS[chartRange];
   const productOptions = [{ value: "all", label: "Todos os produtos" }, ...products.map((product) => ({ value: product.id, label: product.name }))];
@@ -85,7 +88,7 @@ export function DashboardView({
             <div className="perf-top">
               <span className="perf-label"><Icon name="star" size={18} />Produto mais vendido</span>
               {topProduct
-                ? <div className="perf-product"><span className="perf-product-art" aria-hidden="true">{topProduct.product.emoji}</span><div><strong>{topProduct.product.name}</strong><span>{topProduct.units} {topProduct.units === 1 ? "vendido" : "vendidos"}</span></div></div>
+                ? <div className="perf-product"><ProductThumbnail className="perf-product-art" product={topProduct.product} /><div><strong>{topProduct.product.name}</strong><span>{topProduct.units} {topProduct.units === 1 ? "vendido" : "vendidos"}</span></div></div>
                 : <p className="perf-empty">Ainda não há vendas neste período.</p>}
             </div>
           </aside>
@@ -103,8 +106,8 @@ export function DashboardView({
           <div className="panel-header"><h2 className="panel-title"><span className="panel-title-icon"><Icon name="arrow-up" size={18} /></span>Ações rápidas</h2></div>
           <div className="quick-actions">
             <button className="quick-action" type="button" onClick={() => onSectionChange("vendas")}><span className="quick-action-icon"><Icon name="cart" size={18} /></span><span><strong>Nova venda</strong><span>Registar artigos e troco</span></span></button>
-            {canManageProducts && <button className="quick-action" type="button" onClick={() => onOpenModal("product")}><span className="quick-action-icon"><Icon name="box" size={18} /></span><span><strong>Novo produto</strong><span>Atualizar o catálogo</span></span></button>}
-            <button className="quick-action" type="button" onClick={() => onOpenModal("expense")}><span className="quick-action-icon"><Icon name="receipt" size={18} /></span><span><strong>Lançar despesa</strong><span>Registar saída de caixa</span></span></button>
+            {canManageProducts && <button className="quick-action" type="button" onClick={onAddProduct}><span className="quick-action-icon"><Icon name="box" size={18} /></span><span><strong>Novo produto</strong><span>Atualizar o catálogo</span></span></button>}
+            <button className="quick-action" type="button" onClick={onAddExpense}><span className="quick-action-icon"><Icon name="receipt" size={18} /></span><span><strong>Lançar despesa</strong><span>Registar saída de caixa</span></span></button>
             {canManageProducts && <button className="quick-action" type="button" onClick={() => onSectionChange("relatorios")}><span className="quick-action-icon"><Icon name="chart" size={18} /></span><span><strong>Ver relatórios</strong><span>Vendas, custos e margem</span></span></button>}
           </div>
         </div>

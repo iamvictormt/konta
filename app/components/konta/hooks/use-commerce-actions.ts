@@ -53,20 +53,36 @@ export function useCommerceActions({
   const products = data?.products ?? [];
   const sales = data?.sales ?? [];
 
-  async function createProduct(product: Omit<Product, "id">) {
+  async function saveCatalogProduct(product: Omit<Product, "id">, photo?: { file: File; productId: string }, editingId?: string) {
     if (!profile || profile.role !== "admin") return;
     if (!online) {
-      notify("Os produtos só podem ser criados quando a loja estiver online.");
+      notify("Os produtos só podem ser alterados quando a loja estiver online.");
       return;
     }
-    if (products.some((item) => item.sku.toLocaleLowerCase() === product.sku.toLocaleLowerCase())) {
+    const existing = products.find((item) => item.id === editingId);
+    if (editingId && !existing) {
+      notify("Este produto já não está no catálogo.");
+      return;
+    }
+    if (products.some((item) => item.id !== editingId && item.sku.toLocaleLowerCase() === product.sku.toLocaleLowerCase())) {
       notify("Já existe um produto com esse código nesta loja.");
       return;
     }
-    const record: Product = { ...product, id: createId() };
+    const record: Product = { ...product, id: existing?.id ?? photo?.productId ?? createId(), stock: existing?.stock ?? product.stock };
     try {
-      await saveProduct(record, profile.id, profile.organizationId);
-      setData((current) => current ? { ...current, products: [record, ...current.products] } : current);
+      if (photo) {
+        const response = await fetch("/api/commerce/products/image?productId=" + encodeURIComponent(record.id), {
+          method: "POST",
+          headers: { "Content-Type": photo.file.type },
+          body: photo.file,
+          signal: AbortSignal.timeout(45_000),
+        });
+        const result = await response.json() as { imageUrl?: string; error?: string };
+        if (!response.ok || !result.imageUrl) throw new Error(result.error ?? "Não foi possível carregar a foto.");
+        record.imageUrl = result.imageUrl;
+      }
+      await saveProduct(record, profile.id, profile.organizationId, Boolean(existing));
+      setData((current) => current ? { ...current, products: existing ? current.products.map((item) => item.id === record.id ? { ...record, stock: item.stock } : item) : [record, ...current.products] } : current);
       await refreshPending();
       closeModal();
       notify("Produto guardado neste dispositivo.");
@@ -228,5 +244,5 @@ export function useCommerceActions({
     }
   }
 
-  return { createProduct, openCashSession, closeCashSession, createExpense, finishSale };
+  return { saveCatalogProduct, openCashSession, closeCashSession, createExpense, finishSale };
 }

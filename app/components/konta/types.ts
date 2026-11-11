@@ -1,7 +1,6 @@
 import type { Product } from "../../lib/model";
 
 export type Section = "inicio" | "vendas" | "produtos" | "relatorios" | "caixa" | "loja";
-export type ModalKind = "product" | "expense" | null;
 export type CartLine = { productId: string; quantity: number };
 export type SaleCartLine = { product: Product; quantity: number };
 export type ChartRange = "week" | "month" | "year";

@@ -2,10 +2,10 @@ import { z } from "zod";
 import { getCommerceActor } from "@/app/lib/server/actor";
 import { inTransaction, queryOne, type SqlRow } from "@/app/lib/server/db";
 
-const inputSchema = z.object({
+const inputSchema = z.union([z.object({
   storeName: z.string().trim().min(2).max(160),
   ownerName: z.string().trim().min(2).max(100),
-}).strict();
+}).strict(), z.object({ email: z.string().trim().toLowerCase().pipe(z.email().max(254)) }).strict()]);
 
 export async function PATCH(request: Request) {
   const origin = request.headers.get("origin");
@@ -27,8 +27,9 @@ export async function PATCH(request: Request) {
     return Response.json({ error: { message: "Dados inválidos." } }, { status: 400 });
   }
   const parsed = inputSchema.safeParse(input);
-  if (!parsed.success) return Response.json({ error: { message: "Introduza nomes válidos para a loja e o proprietário." } }, { status: 400 });
+  if (!parsed.success) return Response.json({ error: { message: "Introduza dados válidos para a loja e a conta." } }, { status: 400 });
 
+  const details = parsed.data;
   try {
     const updated = await inTransaction(async (client) => {
       const owner = await queryOne<SqlRow & { id: string }>(
@@ -38,13 +39,25 @@ export async function PATCH(request: Request) {
         [actor.id, actor.organizationId], client,
       );
       if (!owner) return false;
-      await client.query('UPDATE "user" SET name = $1, "updatedAt" = NOW() WHERE id = $2', [parsed.data.ownerName, actor.id]);
-      await client.query('UPDATE organizations SET name = $1 WHERE id = $2', [parsed.data.storeName, actor.organizationId]);
+      if ("email" in details) {
+        const existing = await queryOne('SELECT id FROM "user" WHERE lower(email) = $1 AND id <> $2', [details.email, actor.id], client);
+        if (existing) return "duplicate";
+        await client.query('UPDATE "user" SET email = $1, "emailVerified" = false, "updatedAt" = NOW() WHERE id = $2 AND email <> $1', [details.email, actor.id]);
+        return true;
+      }
+      await client.query('UPDATE "user" SET name = $1, "updatedAt" = NOW() WHERE id = $2', [details.ownerName, actor.id]);
+      await client.query('UPDATE organizations SET name = $1 WHERE id = $2', [details.storeName, actor.organizationId]);
       return true;
     });
     if (!updated) return Response.json({ error: { message: "O acesso à loja já não está activo." } }, { status: 403 });
-    return Response.json({ storeName: parsed.data.storeName, ownerName: parsed.data.ownerName }, { headers: { "Cache-Control": "no-store" } });
-  } catch {
+    if (updated === "duplicate") return duplicateEmail();
+    return Response.json(details, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    if ("email" in details && error instanceof Error && "code" in error && error.code === "23505") return duplicateEmail();
     return Response.json({ error: { message: "Não foi possível guardar os dados. Tente novamente." } }, { status: 500 });
   }
+}
+
+function duplicateEmail() {
+  return Response.json({ error: { message: "Este e-mail já está em uso." } }, { status: 409 });
 }

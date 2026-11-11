@@ -119,6 +119,36 @@ textarea:focus-visible,
   transition: border-color var(--transition-control), box-shadow var(--transition-control), background-color var(--transition-control);
 }
 
+.password-input {
+  position: relative;
+}
+
+.password-input > input {
+  padding-inline-end: calc(var(--control-height) + 0.25rem);
+}
+
+.password-input > input::-ms-reveal {
+  display: none;
+}
+
+.password-visibility {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: grid;
+  place-items: center;
+  width: var(--control-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-field);
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.password-visibility:hover:not(:disabled) {
+  color: var(--color-brand-primary);
+}
+
 input[type="checkbox"],
 input[type="radio"] {
   width: 1.125rem;

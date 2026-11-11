@@ -6,6 +6,9 @@ import { navItems, sectionPaths } from "../navigation";
 import type { Section } from "../types";
 import type { StoreModuleId } from "../../../lib/store-modules";
 import { ModuleSwitcher } from "./module-switcher";
+import { MobileHeader, useMobileDrawer } from "./mobile-header";
+import { SidebarSignOut } from "./sidebar-sign-out";
+import { SidebarToggle } from "./sidebar-toggle";
 
 const TABLET_QUERY = "(min-width: 651px) and (max-width: 900px)";
 
@@ -35,6 +38,7 @@ type AppShellProps = {
   stockConflictCount: number;
   onNavigate: (section: Section) => void;
   onModuleNavigate: (moduleId: StoreModuleId) => void;
+  onSignOut: () => Promise<void>;
   children: ReactNode;
 };
 
@@ -50,10 +54,12 @@ export function AppShell({
   stockConflictCount,
   onNavigate,
   onModuleNavigate,
+  onSignOut,
   children,
 }: AppShellProps) {
   // Avisos de sincronização fechados nesta abertura do sistema; voltam a aparecer ao reabrir.
   const [dismissedSyncNotices, setDismissedSyncNotices] = useState<string[]>([]);
+  const drawer = useMobileDrawer();
   const [sidebarOverride, setSidebarOverride] = useState<boolean | null>(null);
   const isTablet = useSyncExternalStore(subscribeToTabletQuery, getTabletQuerySnapshot, getTabletQueryServerSnapshot);
   const sidebarCollapsed = sidebarOverride ?? isTablet;
@@ -65,6 +71,7 @@ export function AppShell({
   const connectionDetail = pendingCount > 0 ? `${connectionLabel} · ${pendingCount} pendente${pendingCount === 1 ? "" : "s"}` : connectionLabel;
 
   function navigate(nextSection: Section) {
+    drawer.setOpen(false);
     onNavigate(nextSection);
   }
 
@@ -76,7 +83,11 @@ export function AppShell({
 
   return (
     <div className={`app-frame ${sidebarCollapsed ? "app-frame--sidebar-collapsed" : ""}`}>
-      <aside className={`sidebar ${sidebarCollapsed ? "is-collapsed" : ""}`} aria-label="Navegação principal">
+      <MobileHeader menuOpen={drawer.open} onMenuToggle={() => drawer.setOpen(!drawer.open)}>
+        <ModuleSwitcher enabledModules={profile.enabledModules} currentModule="commerce" onNavigate={(moduleId) => { drawer.setOpen(false); onModuleNavigate(moduleId); }} />
+      </MobileHeader>
+      {drawer.open && <button className="sidebar-scrim" type="button" aria-label="Fechar menu" onClick={() => drawer.setOpen(false)} />}
+      <aside className={`sidebar ${sidebarCollapsed ? "is-collapsed" : ""} ${drawer.open ? "is-drawer-open" : ""}`} aria-label="Navegação principal">
         <div className="sidebar-head">
           <div className="brand">
             <div className="brand-logo-frame">
@@ -86,17 +97,8 @@ export function AppShell({
               <Image src="/images/konta-mark.svg" alt="" width={270} height={270} sizes="28px" />
             </div>
           </div>
-          <button
-            className="sidebar-toggle"
-            type="button"
-            aria-label={sidebarCollapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
-            aria-controls="primary-navigation"
-            aria-expanded={!sidebarCollapsed}
-            title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
-            onClick={() => setSidebarOverride(!sidebarCollapsed)}
-          >
-            <Icon className={`sidebar-toggle-icon ${sidebarCollapsed ? "is-collapsed" : ""}`} name="chevron" size={17} />
-          </button>
+          <button className="sidebar-close" type="button" aria-label="Fechar menu" onClick={() => drawer.setOpen(false)}><Icon name="close" size={18} /></button>
+          <SidebarToggle collapsed={sidebarCollapsed} onToggle={() => setSidebarOverride(!sidebarCollapsed)} />
         </div>
         <nav id="primary-navigation" className="nav-list">
           {visibleNav.map((item) => {
@@ -111,6 +113,7 @@ export function AppShell({
               </a>
             );
           })}
+          <SidebarSignOut online={online} onSignOut={onSignOut} />
         </nav>
         <div className="sidebar-spacer" />
         <div className="sidebar-promo"><p>Juntos<br />fazemos crescer!</p><svg className="sidebar-promo-swoosh" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 10C60 2 140 1 198 4 140 5 60 6 2 10Z" /></svg></div>

@@ -1,25 +1,6 @@
-.platform-admin-page {
-  min-height: 100vh;
-  color: var(--ink);
-  background: linear-gradient(180deg, #f4f6f0 0, var(--paper) 440px);
-}
 
-.platform-admin-header {
-  min-height: 78px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 12px max(24px, calc((100vw - 1180px) / 2));
-  color: #f7f8ef;
-  background: linear-gradient(112deg, #064332, #07583f 62%, #0c6948);
-  box-shadow: 0 8px 24px #053b2b20;
-}
 
-.platform-admin-brand,
-.platform-admin-account,
-.platform-admin-account > span,
-.platform-admin-intro,
+
 .platform-store-topline,
 .platform-store-actions,
 .platform-financial-heading {
@@ -27,55 +8,18 @@
   align-items: center;
 }
 
-.platform-admin-brand {
-  gap: 11px;
-  color: inherit;
-  text-decoration: none;
-}
 
-.platform-admin-brand > span,
-.platform-admin-account > span {
-  display: grid;
-  gap: 1px;
-}
 
-.platform-admin-brand strong {
-  font-size: 18px;
-  letter-spacing: .09em;
-}
 
-.platform-admin-brand small,
-.platform-admin-account small {
-  color: #d4e0d8;
-  font-size: 11px;
-}
 
-.platform-admin-account {
-  gap: 17px;
-}
 
-.platform-admin-account > span {
-  justify-items: end;
-}
 
-.platform-admin-account .button {
-  color: #fff;
-  border-color: #ffffff38;
-  background: #ffffff0d;
-}
 
 .platform-admin-content {
   display: grid;
-  gap: 23px;
-  width: min(1180px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 43px 0 24px;
+  gap: 22px;
 }
 
-.platform-admin-intro {
-  justify-content: space-between;
-  gap: 24px;
-}
 
 .platform-eyebrow {
   color: var(--forest);
@@ -85,24 +29,8 @@
   text-transform: uppercase;
 }
 
-.platform-admin-intro h1 {
-  margin: 5px 0 3px;
-  font-family: var(--font-heading);
-  font-size: clamp(30px, 4vw, 42px);
-  font-weight: 600;
-  letter-spacing: -.035em;
-}
 
-.platform-admin-intro p,
-.platform-section-heading p {
-  margin: 0;
-  color: var(--muted);
-}
 
-.platform-admin-intro > .button {
-  gap: 8px;
-  flex: none;
-}
 
 .platform-privacy-note {
   display: flex;
@@ -487,17 +415,6 @@
 }
 
 @media (max-width: 600px) {
-  .platform-admin-header { min-height: 68px; padding: 10px 14px; }
-  .platform-admin-brand > img { width: 34px; height: 34px; }
-  .platform-admin-brand strong { font-size: 15px; }
-  .platform-admin-brand small { font-size: 9px; }
-  .platform-admin-account { gap: 8px; }
-  .platform-admin-account > span { display: none; }
-  .platform-admin-account .button { min-height: 36px; padding: 0 9px; font-size: 10px; }
-  .platform-admin-content { width: calc(100% - 26px); gap: 17px; padding-top: 28px; }
-  .platform-admin-intro { align-items: flex-end; }
-  .platform-admin-intro p { max-width: 32ch; font-size: 12px; }
-  .platform-admin-intro > .button { min-height: 36px; padding: 0 9px; font-size: 10px; }
   .platform-store-card { padding: 13px; }
   .platform-store-directory-heading { align-items: stretch; flex-direction: column; }
   .platform-store-search { width: 100%; }
@@ -516,16 +433,7 @@
   .platform-financial-grid small { font-size: 9px; }
 }
 
-.platform-admin-intro-actions {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 9px;
-}
 
-.platform-admin-intro-actions .button {
-  gap: 8px;
-}
 
 .platform-store-filters {
   display: flex;
@@ -609,8 +517,6 @@
 
 .modal:has(.platform-create-store-form) {
   width: min(620px, 100%);
-  max-height: calc(100dvh - 36px);
-  overflow: auto;
 }
 
 .platform-owner-fields {
@@ -757,10 +663,216 @@
 }
 
 @media (max-width: 600px) {
-  .platform-admin-intro { align-items: flex-start; flex-direction: column; }
-  .platform-admin-intro-actions { width: 100%; }
-  .platform-admin-intro-actions .button { flex: 1; min-height: 42px; padding-inline: 12px; }
   .platform-owner-fields { grid-template-columns: 1fr; }
   .platform-modal-actions { align-items: stretch; flex-direction: column-reverse; }
   .platform-modal-actions .button { width: 100%; }
+}
+
+/* ---------- Aparência igual à da loja (menu lateral, paisagem, cartões em pílula) ---------- */
+
+.platform-sign-out-button {
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.platform-sign-out-error {
+  display: block;
+  margin: 2px 6px 0;
+  color: #ffe4b0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.platform-sidebar-account {
+  display: grid;
+  gap: 1px;
+  margin: 0 10px 4px;
+  text-align: center;
+}
+
+.platform-sidebar-account strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-sidebar-account span {
+  color: #b9cfc1;
+  font-size: 12px;
+}
+
+.platform-admin-content {
+  gap: 22px;
+}
+
+.platform-store-card,
+.platform-financial-panel {
+  padding: 24px;
+  border: 1px solid #ffffffc0;
+  border-radius: 24px;
+  background: #fffdf8f2;
+  box-shadow: 0 10px 28px #3c3a2a1c;
+}
+
+.platform-financial-panel {
+  border-color: #e4cf86;
+  box-shadow: 0 10px 28px #3c3a2a1c, 0 0 0 3px #e4ad2420;
+}
+
+.platform-privacy-note,
+.platform-notice {
+  padding: 14px 18px;
+  border-radius: 18px;
+  font-size: 14px;
+}
+
+.platform-privacy-note {
+  border-color: #ffffffc0;
+  background: #e8f2e9ee;
+}
+
+.platform-section-heading h2 {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.platform-section-heading p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.platform-store-grid {
+  gap: 20px;
+}
+
+.platform-store-search {
+  min-height: 52px;
+  padding: 0 18px;
+  border: 1px solid #ffffffc0;
+  border-radius: 999px;
+  background: #fffdf8f2;
+  box-shadow: 0 6px 18px #3c3a2a14;
+}
+
+.platform-store-filters button {
+  min-height: 40px;
+  padding: 0 18px;
+  border-color: transparent;
+  color: var(--color-brand-deep);
+  background: #f3eddd;
+  font-size: 14px;
+}
+
+.platform-store-filters button.is-active {
+  color: #fff;
+  background: linear-gradient(100deg, #17913f, #0f7a3c);
+}
+
+.platform-store-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #f2ead7;
+}
+
+.platform-store-heading h2 {
+  font-size: 18px;
+}
+
+.platform-store-id,
+.platform-store-details small {
+  font-size: 12px;
+}
+
+.platform-store-state,
+.platform-access-pill {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.platform-store-details > div > span,
+.platform-financial-grid > div > span {
+  font-size: 11px;
+}
+
+.platform-store-details strong {
+  font-size: 14px;
+}
+
+.platform-store-sync,
+.platform-store-sync strong {
+  font-size: 13px;
+}
+
+.platform-store-sync small,
+.platform-access-expiry,
+.platform-financial-grid small,
+.platform-financial-note {
+  font-size: 12px;
+}
+
+.platform-store-actions .button {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+
+.platform-financial-grid > div {
+  padding: 16px;
+  border: 0;
+  border-radius: 18px;
+  background: #f3eddd99;
+}
+
+.platform-empty-card {
+  margin: 0;
+  padding: 30px 20px;
+  border: 1px dashed #ddd5be;
+  border-radius: 18px;
+  background: #f7f3e6a6;
+  font-size: 14px;
+}
+
+.platform-admin-footer {
+  padding: 14px 0 4px;
+  border-top: 1px solid #00000014;
+  font-size: 12px;
+}
+
+@media (max-width: 650px) {
+  .platform-sidebar-account {
+    display: none;
+  }
+
+  .platform-sign-out-button {
+    font-size: 11px;
+  }
+
+  .platform-sign-out-error {
+    position: fixed;
+    right: 12px;
+    bottom: 80px;
+    left: 12px;
+    z-index: 40;
+    margin: 0;
+    padding: 10px 14px;
+    border-radius: 14px;
+    color: #733b2d;
+    background: #fff1ed;
+    box-shadow: 0 8px 24px #0003;
+  }
+
+  .platform-store-card,
+  .platform-financial-panel {
+    padding: 18px;
+    border-radius: 20px;
+  }
+}
+
+.heading-actions .button {
+  white-space: nowrap;
 }

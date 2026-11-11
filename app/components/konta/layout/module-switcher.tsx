@@ -9,11 +9,13 @@ type ModuleSwitcherProps = {
 };
 
 export function ModuleSwitcher({ enabledModules, currentModule, onNavigate }: ModuleSwitcherProps) {
-  const [open, setOpen] = useState(false);
+  const [menuOpen, setOpen] = useState(false);
   const menuId = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const current = STORE_MODULES.find((item) => item.id === currentModule);
   const allowed = STORE_MODULES.filter((item) => enabledModules.includes(item.id));
+  const canSwitch = allowed.some((item) => item.id !== currentModule);
+  const open = canSwitch && menuOpen;
 
   function followModule(event: MouseEvent<HTMLAnchorElement>, moduleId: StoreModuleId) {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -31,10 +33,10 @@ export function ModuleSwitcher({ enabledModules, currentModule, onNavigate }: Mo
       buttonRef.current?.focus();
     }
   }}>
-    <button ref={buttonRef} className="module-switcher-trigger" type="button" aria-expanded={open} aria-controls={menuId} onClick={() => setOpen(!open)}>
+    <button ref={buttonRef} className="module-switcher-trigger" type="button" disabled={!canSwitch} aria-label={current?.label} aria-expanded={canSwitch ? open : undefined} aria-controls={open ? menuId : undefined} onClick={() => setOpen(!open)}>
       <Icon name="store" size={19} />
       <span><small>Módulo</small><strong>{current?.label}</strong></span>
-      <Icon name="chevron" size={17} />
+      {canSwitch && <Icon name="chevron" size={17} />}
     </button>
     {open && <div id={menuId} className="module-switcher-menu">
       <p>Os seus módulos</p>
@@ -44,7 +46,6 @@ export function ModuleSwitcher({ enabledModules, currentModule, onNavigate }: Mo
           {item.id === currentModule && <Icon name="check" size={17} />}
         </a>
       </li>)}</ul>
-      {allowed.length === 1 && <p className="module-switcher-hint">A sua conta tem acesso a um módulo.</p>}
     </div>}
   </div>;
 }

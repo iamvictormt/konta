@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { CashSession, Expense, Product, Sale, SaleLine } from "../model";
 import { execute, inTransaction, queryAll, queryOne, type SqlExecutor, type SqlRow } from "./db";
 import type { CommerceActor } from "./actor";
+import { cloudinaryConfig, productImageId, productImageUrl } from "./product-images";
 
 const productSchema = z.object({
   id: z.string().min(1).max(100),
@@ -15,6 +16,8 @@ const productSchema = z.object({
   price: z.number().int().min(0).max(2_000_000_000),
   cost: z.number().int().min(0).max(2_000_000_000),
   emoji: z.string().max(16),
+  active: z.boolean().optional(),
+  imageUrl: z.url().max(500).optional(),
 });
 
 const saleLineSchema = z.object({
@@ -121,7 +124,7 @@ export type StockConflict = {
 
 type ProductRow = SqlRow & {
   id: string; name: string; category: string; sku: string; stock: number;
-  price: number; cost: number; emoji: string;
+  price: number; cost: number; emoji: string; image_url: string | null; active: boolean;
 };
 type SaleRow = SqlRow & {
   id: string; created_at: string; cash_session_id: string | null; total: number; received: number; change_amount: number;
@@ -144,7 +147,7 @@ type ConflictRow = SqlRow & {
 };
 
 function mapProduct(row: ProductRow): Product {
-  return { id: row.id, name: row.name, category: row.category, sku: row.sku, stock: row.stock, price: row.price, cost: row.cost, emoji: row.emoji };
+  return { id: row.id, name: row.name, category: row.category, sku: row.sku, stock: row.stock, price: row.price, cost: row.cost, emoji: row.emoji, active: row.active, imageUrl: row.image_url ?? undefined };
 }
 
 function mapSaleLine(row: SaleLineRow): SaleLine {
@@ -187,7 +190,7 @@ function mapCashSession(row: CashSessionRow): CashSession {
 export async function readCommerceSnapshot(organizationId: string) {
   return inTransaction(async (client) => {
     const productRows = await queryAll<ProductRow>(
-      "SELECT id, name, category, sku, stock, price, cost, emoji FROM commerce_products WHERE organization_id = $1 ORDER BY lower(name), name",
+      "SELECT id, name, category, sku, stock, price, cost, emoji, image_url, active FROM commerce_products WHERE organization_id = $1 ORDER BY lower(name), name",
       [organizationId], client,
     );
     const sales = await queryAll<SaleRow>(
@@ -351,6 +354,12 @@ async function applyOperation(operation: SyncOperation, actor: CommerceActor): P
       if (operation.type === "product.save") {
         if (actor.role !== "admin") throw new Error("Só um administrador pode alterar produtos.");
         const product = operation.payload;
+        if (product.imageUrl) {
+          const config = cloudinaryConfig();
+          if (!config || !z.uuid().safeParse(product.id).success || product.imageUrl !== productImageUrl(config.cloud, productImageId(actor.organizationId, product.id))) {
+            throw new Error("A foto não pertence a este produto.");
+          }
+        }
         const skuOwner = await queryOne<SqlRow>(
           "SELECT id FROM commerce_products WHERE organization_id = $1 AND lower(sku) = lower($2) AND id <> $3",
           [actor.organizationId, product.sku, product.id], client,
@@ -363,13 +372,13 @@ async function applyOperation(operation: SyncOperation, actor: CommerceActor): P
         );
         if (existing) {
           await execute(
-            "UPDATE commerce_products SET name = $1, category = $2, sku = $3, price = $4, cost = $5, emoji = $6, updated_at = $7 WHERE id = $8 AND organization_id = $9",
-            [product.name, product.category, product.sku, product.price, product.cost, product.emoji, operation.createdAt, product.id, actor.organizationId], client,
+            "UPDATE commerce_products SET name = $1, category = $2, sku = $3, price = $4, cost = $5, emoji = $6, updated_at = $7, image_url = COALESCE($10, image_url), active = COALESCE($11, active) WHERE id = $8 AND organization_id = $9",
+            [product.name, product.category, product.sku, product.price, product.cost, product.emoji, operation.createdAt, product.id, actor.organizationId, product.imageUrl ?? null, product.active ?? null], client,
           );
         } else {
           await execute(
-            "INSERT INTO commerce_products (id, organization_id, name, category, sku, stock, price, cost, emoji, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-            [product.id, actor.organizationId, product.name, product.category, product.sku, product.stock, product.price, product.cost, product.emoji, operation.createdAt], client,
+            "INSERT INTO commerce_products (id, organization_id, name, category, sku, stock, price, cost, emoji, updated_at, image_url, active) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+            [product.id, actor.organizationId, product.name, product.category, product.sku, product.stock, product.price, product.cost, product.emoji, operation.createdAt, product.imageUrl ?? null, product.active ?? true], client,
           );
           if (product.stock > 0) {
             await execute(

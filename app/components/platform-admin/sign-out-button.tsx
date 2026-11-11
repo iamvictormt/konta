@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { authClient } from "@/app/lib/auth-client";
+import Icon from "../ui-icon";
 
 export function SignOutButton() {
   const [pending, setPending] = useState(false);
@@ -29,10 +30,11 @@ export function SignOutButton() {
     }
   }
 
-  return <div className="platform-sign-out">
-    <button className="button button-ghost" type="button" disabled={pending} onClick={() => void signOut()}>
-      {pending ? "A terminar sessão…" : "Terminar sessão"}
+  return <>
+    <button className="nav-button platform-sign-out-button" type="button" aria-label={pending ? "A terminar…" : "Terminar sessão"} title="Terminar sessão" disabled={pending} onClick={() => void signOut()}>
+      <span className="nav-icon"><Icon name="logout" size={21} /></span>
+      <span className="nav-text">{pending ? "A terminar…" : "Terminar sessão"}</span>
     </button>
     {error && <span className="platform-sign-out-error" role="alert">{error}</span>}
-  </div>;
+  </>;
 }

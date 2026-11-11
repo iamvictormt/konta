@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { authClient } from "../../../lib/auth-client";
 import {
   adoptLegacyOperations,
   clearOfflineProfile,
@@ -232,7 +233,7 @@ export function useCommerceSession(notify: (message: string) => void) {
     }
   }, [invalidateProfile, refreshLocalData]);
 
-  const updateStoreDetails = useCallback(async (storeName: string, ownerName: string) => {
+  const updateStoreSettings = useCallback(async (details: { storeName: string; ownerName: string } | { email: string }) => {
     const current = profileRef.current;
     if (!current || !navigator.onLine) throw new Error("Ligue-se à internet para alterar os dados da loja.");
     if (savingDetails.current) throw new Error("Já existe uma alteração em curso.");
@@ -244,22 +245,22 @@ export function useCommerceSession(notify: (message: string) => void) {
       const response = await fetch("/api/commerce/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storeName, ownerName }),
+        body: JSON.stringify(details),
         signal: AbortSignal.timeout(10_000),
       });
-      const result = await response.json() as { storeName?: string; ownerName?: string; error?: { message?: string } };
-      if (!response.ok || !result.storeName || !result.ownerName) throw new Error(result.error?.message ?? "Não foi possível guardar os dados.");
+      const result = await response.json() as { storeName?: string; ownerName?: string; email?: string; error?: { message?: string } };
+      if (!response.ok || ("email" in details ? !result.email : !result.storeName || !result.ownerName)) throw new Error(result.error?.message ?? "Não foi possível guardar os dados.");
       if (profileRef.current?.id !== current.id || profileRef.current.organizationId !== current.organizationId) return;
-      const updatedProfile = { ...profileRef.current, name: result.ownerName };
+      const updatedProfile = { ...profileRef.current, name: result.ownerName ?? profileRef.current.name, email: result.email ?? profileRef.current.email };
       profileRef.current = updatedProfile;
       setProfile(updatedProfile);
-      setStoreName(result.storeName);
+      if (result.storeName) setStoreName(result.storeName);
       try {
-        await Promise.all([saveStoreName(result.storeName, current.organizationId), saveOfflineProfile(updatedProfile)]);
+        await Promise.all([result.storeName && saveStoreName(result.storeName, current.organizationId), saveOfflineProfile(updatedProfile)]);
       } catch {
         setStorageError("Os dados foram guardados no servidor, mas não foi possível actualizar a cópia local.");
       }
-      notify("Dados da loja actualizados.");
+      notify(result.email ? "E-mail de acesso actualizado." : "Dados da loja actualizados.");
     } finally {
       savingDetails.current = false;
       if (profileRef.current?.id === current.id) void syncNow(profileRef.current);
@@ -277,8 +278,8 @@ export function useCommerceSession(notify: (message: string) => void) {
       return;
     }
     try {
-      const response = await fetch("/api/auth/sign-out", { method: "POST" });
-      if (!response.ok) throw new Error("O servidor não confirmou o fim da sessão.");
+      const result = await authClient.signOut();
+      if (result.error) throw new Error("O servidor não confirmou o fim da sessão.");
       for (const controller of syncAbortControllers.current.values()) controller.abort();
       syncAbortControllers.current.clear();
       await clearOfflineProfile();
@@ -444,7 +445,7 @@ export function useCommerceSession(notify: (message: string) => void) {
     refreshLocalData,
     refreshPending,
     syncNow,
-    updateStoreDetails,
+    updateStoreSettings,
     acceptProfile,
     signOut,
   };

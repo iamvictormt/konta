@@ -19,6 +19,7 @@ type SettingsViewProps = {
   onRetry: () => void;
   onRefresh: () => void | Promise<void>;
   onSignOut: () => void;
+  onSaveEmail: (email: string) => Promise<void>;
   onSaveDetails: (storeName: string, ownerName: string) => Promise<void>;
 };
 
@@ -36,6 +37,7 @@ export function SettingsView({
   onRefresh,
   onSignOut,
   onSaveDetails,
+  onSaveEmail,
 }: SettingsViewProps) {
   return <>
     <PageHeading title={storeName} subtitle="Dados da loja, acesso e estado de sincronização." />
@@ -52,7 +54,7 @@ export function SettingsView({
         <p>A loja tem uma única conta proprietária. O administrador da Kontá gere os módulos e o estado do acesso.</p>
         {profile.isOwner && <div className="settings-account-actions">
           <StoreDetailsEditor storeName={storeName} ownerName={profile.name} online={online} onSave={onSaveDetails} />
-          <EmailChangeEditor currentEmail={profile.email} online={online} />
+          <EmailChangeEditor onSave={onSaveEmail} currentEmail={profile.email} online={online} />
           {!online && <p>Ligue-se à internet para alterar os dados ou o e-mail de acesso.</p>}
         </div>}
         {profile.isPlatformAdmin && <a className="button button-ghost settings-platform" href="/plataforma">Administração da Kontá<Icon name="arrow-right" size={15} /></a>}

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import Image from "next/image";
 import FormField from "../../ui/form-field";
+import PasswordInput from "../../ui/password-input";
 import type { CommerceProfile } from "../../../lib/model";
 
 export function AuthScreen({ online, initialMessage, onSignedIn }: { online: boolean; initialMessage: string; onSignedIn: (profile: CommerceProfile, storeName?: string) => void }) {
@@ -71,7 +72,7 @@ export function AuthScreen({ online, initialMessage, onSignedIn }: { online: boo
       {!online && <div className="auth-message">Este dispositivo ainda não tem uma sessão offline válida. A primeira autenticação exige internet.</div>}
       <form onSubmit={submit}>
         <FormField id="auth-email" label="E-mail"><input id="auth-email" type="email" autoComplete="username" required value={email} onChange={(event) => setEmail(event.target.value)} /></FormField>
-        <FormField id="auth-password" label="Palavra-passe"><input id="auth-password" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} /></FormField>
+        <FormField id="auth-password" label="Palavra-passe"><PasswordInput id="auth-password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} /></FormField>
         <button className="button button-primary auth-submit" type="submit" disabled={submitting || !online}>{submitting ? "A entrar…" : "Entrar"}</button>
       </form>
       <p className="auth-footnote">Os dados deste dispositivo só ficam acessíveis depois de uma autenticação online válida.</p>

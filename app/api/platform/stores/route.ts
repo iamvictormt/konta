@@ -5,12 +5,13 @@ import { getPlatformActor } from "@/app/lib/server/platform";
 import { execute, inTransaction, queryAll, queryOne, type SqlRow } from "@/app/lib/server/db";
 import { hasPlatformAdministratorRole } from "@/app/lib/server/actor";
 import { STORE_MODULE_IDS, type StoreModuleId } from "@/app/lib/store-modules";
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@/app/lib/password-policy";
 
 const createStoreSchema = z.object({
   storeName: z.string().trim().min(2).max(160),
   ownerName: z.string().trim().min(2).max(100),
   ownerEmail: z.email().trim().max(254),
-  initialPassword: z.string().min(12).max(128),
+  initialPassword: z.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASSWORD_LENGTH),
   enabledModules: z.array(z.enum(STORE_MODULE_IDS)).min(1).max(STORE_MODULE_IDS.length)
     .refine((modules) => new Set(modules).size === modules.length),
 });

@@ -16,6 +16,7 @@ const DATABASE_NAME_PREFIX = "konta-commerce-tenant-v1-";
 const DATABASE_VERSION = 4;
 const STORE_NAMES = ["products", "sales", "expenses", "cash-sessions", "outbox", "meta"] as const;
 const OFFLINE_SESSION_KEY = "offline-session";
+const LEGACY_SESSION_CONSUMED_KEY = "legacy-session-consumed";
 const SESSION_DATABASE_NAME = "konta-session";
 const SESSION_DATABASE_VERSION = 1;
 const LEGACY_MIGRATION_KEY = "legacy-default-data-migrated";
@@ -266,15 +267,16 @@ export async function loadCommerceData(organizationId?: string): Promise<Commerc
   return { products, sales, expenses, cashSessions, stockConflicts };
 }
 
-export async function saveOfflineProfile(profile: CommerceProfile) {
+export async function saveOfflineProfile(profile: CommerceProfile, offlineUntil = Date.now() + 7 * 24 * 60 * 60 * 1000) {
   const database = await openSessionDatabase();
   const transaction = database.transaction("session", "readwrite");
   const done = transactionDone(transaction);
   transaction.objectStore("session").put({
     id: OFFLINE_SESSION_KEY,
     profile,
-    offlineUntil: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    offlineUntil,
   });
+  transaction.objectStore("session").put({ id: LEGACY_SESSION_CONSUMED_KEY, value: true });
   await done;
 }
 
@@ -294,11 +296,17 @@ export async function loadOfflineProfile(): Promise<CommerceProfile | null> {
   const database = await openSessionDatabase();
   const transaction = database.transaction("session", "readonly");
   const done = transactionDone(transaction);
-  const value = await requestResult(transaction.objectStore("session").get(OFFLINE_SESSION_KEY)) as
+  const sessionStore = transaction.objectStore("session");
+  const valueRequest = sessionStore.get(OFFLINE_SESSION_KEY);
+  const markerRequest = sessionStore.get(LEGACY_SESSION_CONSUMED_KEY);
+  const [value, marker] = await Promise.all([requestResult(valueRequest), requestResult(markerRequest)]) as [
     | { profile?: CommerceProfile; offlineUntil?: number }
-    | undefined;
+    | undefined,
+    unknown,
+  ];
   await done;
   if (value?.profile && value.offlineUntil && value.offlineUntil >= Date.now()) return normalizeOfflineProfile(value.profile);
+  if (value || marker) return null;
 
   const legacyDatabase = await openLegacyDatabaseIfExists();
   if (!legacyDatabase) return null;
@@ -307,7 +315,7 @@ export async function loadOfflineProfile(): Promise<CommerceProfile | null> {
     const legacySession = meta.find((entry) => entry.id === OFFLINE_SESSION_KEY);
     if (!legacySession?.profile || !legacySession.offlineUntil || legacySession.offlineUntil < Date.now()) return null;
     const profile = normalizeOfflineProfile(legacySession.profile);
-    await saveOfflineProfile(profile);
+    await saveOfflineProfile(profile, legacySession.offlineUntil);
     return profile;
   } finally {
     legacyDatabase.close();
@@ -319,6 +327,7 @@ export async function clearOfflineProfile() {
   const transaction = database.transaction("session", "readwrite");
   const done = transactionDone(transaction);
   transaction.objectStore("session").delete(OFFLINE_SESSION_KEY);
+  transaction.objectStore("session").put({ id: LEGACY_SESSION_CONSUMED_KEY, value: true });
   await done;
 }
 
@@ -410,12 +419,15 @@ function sessionSyncState(operations: OutboxOperation[], sessionId: string) {
   return related.length ? "pending" as const : "synced" as const;
 }
 
-export async function saveProduct(product: Product, actorId: string, organizationId?: string) {
+export async function saveProduct(product: Product, actorId: string, organizationId?: string, preserveStock = false) {
   const [database, deviceId] = await Promise.all([openDatabase(organizationId), getDeviceId(organizationId)]);
   const transaction = database.transaction(["products", "outbox", "meta"], "readwrite");
   const done = transactionDone(transaction);
-  transaction.objectStore("products").put(product);
-  enqueueOperation(transaction, "product.save", product, actorId, deviceId);
+  const products = transaction.objectStore("products");
+  const existing = preserveStock ? await requestResult(products.get(product.id)) as Product | undefined : undefined;
+  const record = existing ? { ...product, stock: existing.stock } : product;
+  products.put(record);
+  enqueueOperation(transaction, "product.save", record, actorId, deviceId);
   await done;
 }
 
@@ -621,7 +633,7 @@ export async function replaceWithServerSnapshot(snapshot: CommerceData, organiza
       if (entry.type === "product.save") {
         const product = entry.payload as Product;
         const serverProduct = products.get(product.id);
-        products.set(product.id, serverProduct ? { ...product, stock: serverProduct.stock } : product);
+        products.set(product.id, serverProduct ? { ...product, stock: serverProduct.stock, active: product.active ?? serverProduct.active, imageUrl: product.imageUrl ?? serverProduct.imageUrl } : product);
       } else if (entry.type === "sale.create") {
         const sale = { ...(entry.payload as Sale), syncState: entry.state === "failed" ? "failed" as const : "pending" as const };
         sales.set(sale.id, sale);

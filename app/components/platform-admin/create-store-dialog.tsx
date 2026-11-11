@@ -3,7 +3,9 @@
 import { useState, type FormEvent } from "react";
 import type { StoreModuleId } from "../../lib/store-modules";
 import { STORE_MODULES } from "../../lib/store-modules";
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "../../lib/password-policy";
 import FormField from "../ui/form-field";
+import PasswordInput from "../ui/password-input";
 import { Modal } from "../konta/shared/modal";
 import type { CreateStoreInput } from "./types";
 
@@ -59,8 +61,8 @@ export function CreateStoreDialog({ busy, onClose, onSubmit }: CreateStoreDialog
         </FormField>
       </div>
       <FormField id="new-owner-password" label="Palavra-passe inicial">
-        <input id="new-owner-password" name="initialPassword" type="password" autoComplete="new-password" required minLength={12} maxLength={128} value={initialPassword} onChange={(event) => setInitialPassword(event.target.value)} />
-        <small className="platform-field-hint">Use pelo menos 12 caracteres e entregue as credenciais directamente ao proprietário.</small>
+        <PasswordInput id="new-owner-password" name="initialPassword" autoComplete="new-password" required minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_LENGTH} value={initialPassword} onChange={(event) => setInitialPassword(event.target.value)} />
+        <small className="platform-field-hint">Use pelo menos {MIN_PASSWORD_LENGTH} caracteres e entregue as credenciais directamente ao proprietário.</small>
       </FormField>
       <fieldset className="platform-module-picker">
         <legend>Módulos desta conta</legend>
