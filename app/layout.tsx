@@ -20,9 +20,32 @@ const displayFont = Fraunces({
   weight: ["500", "600", "700"],
 });
 
+const title = "Kontá — Gestão simples. Negócios fortes.";
+const description = "Gestão simples para lojas e pequenos negócios.";
+const shareImage = {
+  url: "/images/konta-share.png",
+  width: 1200,
+  height: 630,
+  alt: "Logótipo da Kontá sobre fundo verde",
+};
+
 export const metadata: Metadata = {
-  title: "Kontá — Gestão simples. Negócios fortes.",
-  description: "Gestão simples para lojas e pequenos negócios.",
+  metadataBase: new URL(process.env.BETTER_AUTH_URL ?? "http://localhost:3000"),
+  title,
+  description,
+  openGraph: {
+    type: "website",
+    siteName: "Kontá",
+    title,
+    description,
+    images: [shareImage],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: [shareImage],
+  },
   applicationName: "Kontá",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
