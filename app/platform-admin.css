@@ -82,12 +82,6 @@
   font-size: 12px;
 }
 
-.platform-store-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 13px;
-}
-
 .platform-store-card,
 .platform-financial-panel {
   min-width: 0;
@@ -255,8 +249,6 @@
 .platform-store-search input:focus-visible { outline: 0; }
 .platform-store-search:focus-within { border-color: var(--forest); box-shadow: 0 0 0 3px #d9b74b35; }
 
-.platform-sign-out { display: grid; justify-items: end; gap: 3px; }
-.platform-sign-out-error { max-width: 260px; color: #ffe4b0; font-size: 10px; text-align: end; }
 
 .platform-admin-page .sr-only {
   position: absolute;
@@ -410,7 +402,6 @@
 }
 
 @media (max-width: 850px) {
-  .platform-store-grid { grid-template-columns: 1fr; }
   .platform-financial-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -670,20 +661,6 @@
 
 /* ---------- Aparência igual à da loja (menu lateral, paisagem, cartões em pílula) ---------- */
 
-.platform-sign-out-button {
-  font: inherit;
-  font-size: 15px;
-  cursor: pointer;
-}
-
-.platform-sign-out-error {
-  display: block;
-  margin: 2px 6px 0;
-  color: #ffe4b0;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
 .platform-sidebar-account {
   display: grid;
   gap: 1px;
@@ -743,10 +720,6 @@
   margin: 0;
   color: var(--color-text-secondary);
   font-size: 14px;
-}
-
-.platform-store-grid {
-  gap: 20px;
 }
 
 .platform-store-search {
@@ -848,24 +821,6 @@
     display: none;
   }
 
-  .platform-sign-out-button {
-    font-size: 11px;
-  }
-
-  .platform-sign-out-error {
-    position: fixed;
-    right: 12px;
-    bottom: 80px;
-    left: 12px;
-    z-index: 40;
-    margin: 0;
-    padding: 10px 14px;
-    border-radius: 14px;
-    color: #733b2d;
-    background: #fff1ed;
-    box-shadow: 0 8px 24px #0003;
-  }
-
   .platform-store-card,
   .platform-financial-panel {
     padding: 18px;
@@ -875,4 +830,231 @@
 
 .heading-actions .button {
   white-space: nowrap;
+}
+
+.platform-admin-frame {
+  --platform-surface: #fff;
+  --platform-line: #d9e2dd;
+  --platform-muted: #4d6259;
+  --platform-sidebar: #102820;
+  background: #f4f6f5;
+}
+
+.platform-admin-frame :is(.sidebar, .mobile-header) {
+  background: var(--platform-sidebar);
+}
+
+.platform-admin-frame .sidebar::after {
+  display: none;
+}
+
+.platform-admin-frame .nav-button.is-active {
+  background: #244638;
+}
+
+.platform-admin-frame .nav-button.is-active::before {
+  background: #94c4ad;
+}
+
+.platform-admin-frame .app-main {
+  min-width: 0;
+  background: transparent;
+}
+
+.platform-admin-content :is(h1, h2) {
+  font-family: var(--font-body), sans-serif;
+}
+
+.platform-admin-content .page-heading h1 {
+  font-size: 2rem;
+  font-weight: 750;
+  letter-spacing: -.03em;
+}
+
+.platform-admin-content .button-primary {
+  background: #18573f;
+}
+
+.platform-admin-content .button-primary:hover:not(:disabled) {
+  background: #124431;
+}
+
+.platform-directory-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.platform-directory-toolbar .platform-store-search {
+  flex: 1 1 280px;
+  min-width: 0;
+  min-height: 44px;
+  padding-inline: 12px;
+  border: 1px solid #aebfb6;
+  border-radius: 10px;
+  background: var(--platform-surface);
+  box-shadow: none;
+}
+
+.platform-directory-toolbar .platform-store-filters button {
+  min-height: 44px;
+  padding-inline: 12px;
+  border: 1px solid var(--platform-line);
+  border-radius: 8px;
+  background: var(--platform-surface);
+  color: #234437;
+}
+
+.platform-directory-toolbar .platform-store-filters button.is-active {
+  border-color: #91b6a3;
+  background: #e1efe7;
+  color: #123d2d;
+}
+
+.platform-directory-table,
+.platform-directory-card,
+.platform-admin-content :is(.platform-store-card, .platform-empty-card) {
+  border: 1px solid var(--platform-line);
+  border-radius: 14px;
+  background: var(--platform-surface);
+  box-shadow: none;
+}
+
+.platform-directory-table {
+  overflow-x: auto;
+}
+
+.platform-directory-table table {
+  min-width: 0;
+}
+
+.platform-directory-table :is(th, td) {
+  padding: 12px;
+  text-align: start;
+  font-size: .875rem;
+  vertical-align: middle;
+}
+
+.platform-directory-table thead th {
+  color: #345047;
+  background: #edf2ef;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.platform-directory-table tbody :is(th, td) {
+  border-top: 1px solid var(--platform-line);
+  background: transparent;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.platform-directory-table tbody tr:focus-within {
+  background: #f5f8f6;
+}
+
+.platform-row-identity {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.platform-row-identity > span,
+.platform-directory-card-bottom small {
+  color: var(--platform-muted);
+  font-size: .8125rem;
+  font-weight: 400;
+}
+
+.platform-row-action {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.platform-directory-cards {
+  display: none;
+}
+
+.platform-admin-content .platform-store-card {
+  scroll-margin-block-start: 80px;
+}
+
+.platform-admin-content .platform-store-heading {
+  overflow-wrap: anywhere;
+}
+
+.platform-admin-content .platform-store-heading h2 {
+  overflow: visible;
+  white-space: normal;
+}
+
+.platform-admin-content .platform-module-tags > span {
+  padding: 4px 7px;
+  color: #2d5444;
+  background: #edf3ef;
+  font-size: .75rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.platform-admin-content :is(.platform-row-action, .heading-actions .button-ghost, .platform-detail-close) {
+  border: 1px solid var(--platform-line);
+  border-radius: 8px;
+  background: var(--platform-surface);
+}
+
+.platform-admin-content :is(.platform-row-action, .heading-actions .button-ghost, .platform-detail-close):hover:not(:disabled) {
+  background: #edf3ef;
+}
+
+.platform-detail-close {
+  flex: none;
+  min-width: 44px;
+  padding: 0;
+}
+
+.platform-store-card > .platform-financial-panel {
+  margin-top: 16px;
+  padding: 16px 0 0;
+  border: 0;
+  border-top: 1px solid var(--platform-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+@media (max-width: 1000px) {
+  .platform-directory-table {
+    display: none;
+  }
+
+  .platform-directory-cards {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .platform-directory-card {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 14px;
+  }
+
+  .platform-directory-card-top,
+  .platform-directory-card-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .platform-directory-card-bottom > span {
+    display: grid;
+    font-size: .875rem;
+  }
 }

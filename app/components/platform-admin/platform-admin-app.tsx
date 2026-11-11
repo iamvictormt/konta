@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Icon from "../ui-icon";
 import { FinancialSummaryPanel } from "./financial-summary-panel";
 import { CreateStoreDialog } from "./create-store-dialog";
-import { SignOutButton } from "./sign-out-button";
+import { PlatformSignOut } from "./platform-sign-out";
 import { StoreDirectory } from "./store-directory";
+import { StoreDetailsPanel } from "./store-details-panel";
 import { SupportAccessDialog } from "./support-access-dialog";
 import { usePlatformAdmin } from "./use-platform-admin";
 import { MobileHeader, useMobileDrawer } from "../konta/layout/mobile-header";
@@ -20,7 +21,15 @@ export function PlatformAdminApp({ profile }: { profile: PlatformProfile }) {
   const refreshing = admin.loading;
   const drawer = useMobileDrawer();
   const [collapsed, setCollapsed] = useState(false);
+  const [openStoreId, setOpenStoreId] = useState<string | null>(null);
+  const detailTrigger = useRef<HTMLButtonElement>(null);
   const sidebarCollapsed = collapsed && !drawer.open;
+  const openStore = admin.stores.find((store) => store.id === openStoreId);
+
+  function closeDetails() {
+    setOpenStoreId(null);
+    detailTrigger.current?.focus();
+  }
 
   return <div className={`app-frame platform-admin-frame ${sidebarCollapsed ? "app-frame--sidebar-collapsed" : ""}`}>
     <MobileHeader menuOpen={drawer.open} onMenuToggle={() => drawer.setOpen(!drawer.open)} />
@@ -41,17 +50,13 @@ export function PlatformAdminApp({ profile }: { profile: PlatformProfile }) {
       <nav id="primary-navigation" className="nav-list" aria-label="Administração">
         <a className="nav-button is-active" href="/plataforma" aria-current="page" aria-label="Gestão de lojas" title={sidebarCollapsed ? "Gestão de lojas" : undefined}><span className="nav-icon"><Icon name="store" size={21} /></span><span className="nav-text">Gestão de lojas</span></a>
         {profile.hasStoreAccess && <Link className="nav-button" href="/loja" aria-label="A minha loja" title={sidebarCollapsed ? "A minha loja" : undefined}><span className="nav-icon"><Icon name="home" size={21} /></span><span className="nav-text">A minha loja</span></Link>}
-        <SignOutButton />
+        <PlatformSignOut />
       </nav>
       <div className="sidebar-spacer" />
       {!sidebarCollapsed && <p className="platform-sidebar-account"><strong>{profile.name}</strong><span>Administrador geral</span></p>}
-      <div className="sidebar-promo"><p>Juntos<br />fazemos crescer!</p><svg className="sidebar-promo-swoosh" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 10C60 2 140 1 198 4 140 5 60 6 2 10Z" /></svg></div>
     </aside>
 
     <div className="app-main">
-      <div className="scenic-backdrop" aria-hidden="true">
-        <Image src="/images/store-header.png" alt="" fill sizes="(max-width: 650px) 100vw, calc(100vw - 218px)" preload />
-      </div>
       <main className="page-content platform-admin-content">
         <div className="page-heading">
           <div><h1>Gestão de lojas</h1><p>Crie as contas, atribua módulos e acompanhe o estado de cada loja.</p></div>
@@ -65,13 +70,27 @@ export function PlatformAdminApp({ profile }: { profile: PlatformProfile }) {
       <StoreDirectory
         stores={admin.stores}
         loading={admin.loading}
-        busyStoreId={admin.busyStoreId}
-        onGrantAccess={admin.setSelectedStore}
-        onViewFinancials={(store) => void admin.viewFinancials(store)}
-        onRevokeAccess={(store) => void admin.revokeAccess(store)}
-        onToggleStatus={(store) => void admin.setStoreActive(store, store.status !== "active")}
-      />
-      {admin.financialStore && admin.financialSummary && <FinancialSummaryPanel storeName={admin.financialStore.name} summary={admin.financialSummary} />}
+        openStoreId={openStore?.id ?? null}
+        onOpenStore={(id, trigger) => {
+          detailTrigger.current = trigger;
+          setOpenStoreId((current) => current === id ? null : id);
+        }}
+      >
+        {openStore && <StoreDetailsPanel
+          key={openStore.id}
+          store={openStore}
+          busy={admin.busyStoreId === openStore.id}
+          onClose={closeDetails}
+          onGrantAccess={admin.setSelectedStore}
+          onViewFinancials={(store) => void admin.viewFinancials(store)}
+          onRevokeAccess={(store) => void admin.revokeAccess(store)}
+          onToggleStatus={(store) => void admin.setStoreActive(store, store.status !== "active")}
+        >
+          {admin.financialSummary && admin.financialStore?.id === openStore.id && openStore.supportAccess?.id === admin.financialSummary.grantId && (
+            <FinancialSummaryPanel storeName={openStore.name} summary={admin.financialSummary} />
+          )}
+        </StoreDetailsPanel>}
+      </StoreDirectory>
       <footer className="platform-admin-footer">Kontá · A administração da plataforma não concede acesso permanente às contas das lojas.</footer>
       </main>
     </div>

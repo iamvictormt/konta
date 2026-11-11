@@ -1593,6 +1593,12 @@ td {
   backdrop-filter: blur(4px);
 }
 
+.sign-out-error {
+  margin: 12px 0 0;
+  color: #8b392d;
+  font-size: .875rem;
+}
+
 @keyframes modal-in {
   from {
     opacity: 0;

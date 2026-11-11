@@ -1,32 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Icon from "../ui-icon";
 import { STORE_MODULES } from "../../lib/store-modules";
 import { StoreStatusDialog } from "./store-status-dialog";
 import type { PlatformStore } from "./types";
 
-type StoreCardProps = {
+type StoreDetailsPanelProps = {
   store: PlatformStore;
   busy: boolean;
   onGrantAccess: (store: PlatformStore) => void;
   onViewFinancials: (store: PlatformStore) => void;
   onRevokeAccess: (store: PlatformStore) => void;
   onToggleStatus: (store: PlatformStore) => void;
+  onClose: () => void;
+  children?: ReactNode;
 };
 
-export function StoreCard({ store, busy, onGrantAccess, onViewFinancials, onRevokeAccess, onToggleStatus }: StoreCardProps) {
+export function StoreDetailsPanel({ store, busy, onGrantAccess, onViewFinancials, onRevokeAccess, onToggleStatus, onClose, children }: StoreDetailsPanelProps) {
   const [confirmStatus, setConfirmStatus] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { heading.current?.focus(); }, []);
   const active = store.status === "active";
   const lastSyncLabel = store.lastSyncAt
     ? new Date(store.lastSyncAt).toLocaleString("pt-PT", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
     : "Ainda sem operações recebidas";
 
-  return <article className="platform-store-card">
+  return <section id="platform-store-detail" className="platform-store-card" aria-labelledby="platform-store-detail-title">
     <div className="platform-store-topline">
       <span className="platform-store-icon"><Icon name="store" size={21} /></span>
-      <div className="platform-store-heading"><h2>{store.name}</h2><span className="platform-store-id">{store.id}</span></div>
+      <div className="platform-store-heading"><h2 ref={heading} tabIndex={-1} id="platform-store-detail-title">{store.name}</h2><span className="platform-store-id">{store.id}</span></div>
       <span className={`platform-store-state${active ? "" : " is-inactive"}`}><span />{active ? "Activa" : "Inactiva"}</span>
+      <button type="button" className="button button-ghost platform-detail-close" onClick={onClose} aria-label="Fechar detalhes"><Icon name="close" size={18} /></button>
     </div>
     <div className="platform-store-details">
       <div><span>Proprietário</span><strong>{store.owner?.name ?? "Ainda não atribuído"}</strong><small>Utilizador: {store.owner?.email ?? "Sem acesso configurado"}</small></div>
@@ -44,11 +49,12 @@ export function StoreCard({ store, busy, onGrantAccess, onViewFinancials, onRevo
       </button>
       {store.supportAccess && <span className="platform-access-expiry">Acesso até {new Date(store.supportAccess.expiresAt).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })} · {store.supportAccess.reason}</span>}
     </div>
+    {children}
     {confirmStatus && <StoreStatusDialog
       store={store}
       busy={busy}
       onClose={() => setConfirmStatus(false)}
       onConfirm={() => { onToggleStatus(store); setConfirmStatus(false); }}
     />}
-  </article>;
+  </section>;
 }
