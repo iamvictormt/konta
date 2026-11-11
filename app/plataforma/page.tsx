@@ -7,6 +7,6 @@ export const instant = false;
 
 export default async function PlatformPage() {
   const actor = await getPlatformActor(await headers());
-  if (!actor) redirect("/loja");
+  if (!actor) redirect("/login");
   return <PlatformAdminApp profile={actor} />;
 }

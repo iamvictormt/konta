@@ -16,9 +16,20 @@ export default function KontaApp() {
   const pathname = usePathname();
   const section = pathSections[pathname] ?? "inicio";
   const currentModule = moduleForPath(pathname);
+  const isLoginPage = pathname === "/login";
   const [toast, setToast] = useState("");
   const session = useCommerceSession(setToast);
   const { profile, authReady, online, authMessage, acceptProfile, storeName, syncMessage, signOut } = session;
+
+  useEffect(() => {
+    if (!authReady) return;
+    if (!profile && !isLoginPage) {
+      window.history.replaceState(null, "", "/login");
+    } else if (profile && isLoginPage) {
+      const landingModule = profile.enabledModules.includes("commerce") ? "commerce" : profile.enabledModules[0];
+      if (landingModule) window.history.replaceState(null, "", STORE_MODULE_ROUTES[landingModule]);
+    }
+  }, [authReady, isLoginPage, profile]);
 
   useEffect(() => {
     if (!toast) return;
@@ -64,6 +75,8 @@ export default function KontaApp() {
       onSignedIn={(nextProfile, nextStoreName) => { void acceptProfile(nextProfile, nextStoreName); }}
     />;
   }
+
+  if (isLoginPage) return <LoadingScreen />;
 
   const commerceActive = currentModule === "commerce" && profile.enabledModules.includes("commerce");
 

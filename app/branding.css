@@ -54,6 +54,11 @@
   box-shadow: 0 14px 28px #042d2030;
 }
 
+.auth-logo-frame img {
+  /* Centre the visible mark within the SVG's uneven transparent margins. */
+  object-position: center 64%;
+}
+
 .auth-loading .auth-logo-frame {
   margin-bottom: 4px;
 }

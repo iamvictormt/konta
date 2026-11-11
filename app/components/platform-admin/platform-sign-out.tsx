@@ -22,7 +22,7 @@ function getServerOnline() {
 async function signOut() {
   const result = await authClient.signOut();
   if (result.error) throw new Error("Não foi possível sair da conta.");
-  window.location.replace("/loja");
+  window.location.replace("/login");
 }
 
 export function PlatformSignOut() {
