@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Kontá — Gestão simples",
     short_name: "Kontá",
     description: "Gestão simples para lojas e pequenos negócios.",
-    start_url: "/",
+    start_url: "/loja",
     display: "standalone",
     background_color: "#f7f1e4",
     theme_color: "#07583f",

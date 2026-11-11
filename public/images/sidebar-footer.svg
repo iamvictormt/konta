@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 248 100" fill="none">
+  <defs>
+    <pattern id="stripes" width="18" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+      <rect width="18" height="18" fill="#0b3f2d"/>
+      <rect width="7" height="18" fill="#f2b632"/>
+      <rect x="9" width="5" height="18" fill="#e8832c"/>
+    </pattern>
+    <clipPath id="stripe-shape"><path d="M0 6 56 58V100H0Z"/></clipPath>
+    <g id="tile">
+      <rect width="48" height="46" fill="#0b3f2d"/>
+      <rect x="3" y="3" width="42" height="40" stroke="#2fa047" stroke-width="4" stroke-dasharray="118 14"/>
+      <rect x="9" y="9" width="30" height="28" stroke="#e8832c" stroke-width="4" stroke-dasharray="86 12" stroke-dashoffset="-20"/>
+      <rect x="15" y="15" width="18" height="16" stroke="#1f7f3a" stroke-width="4" stroke-dasharray="50 8"/>
+      <rect x="21" y="21" width="6" height="4" fill="#f2b632"/>
+    </g>
+  </defs>
+  <g clip-path="url(#stripe-shape)"><rect width="56" height="100" fill="url(#stripes)"/></g>
+  <use href="#tile" x="58" y="54"/>
+  <use href="#tile" x="106" y="54" transform="rotate(180 130 77)"/>
+  <use href="#tile" x="154" y="54"/>
+  <use href="#tile" x="202" y="54" transform="rotate(180 226 77)"/>
+</svg>

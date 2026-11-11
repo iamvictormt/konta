@@ -490,9 +490,7 @@ td,
 .auth-footnote,
 .auth-loading > span,
 .sync-time,
-.team-message,
-.team-row small,
-.team-role,
+.role-note,
 .failed-operations,
 .failed-operations small,
 .stock-conflict-row small {
@@ -507,7 +505,7 @@ td,
 .cash-input label,
 .form-field label,
 .settings-panel h2,
-.team-role {
+.role-note {
   font-size: var(--type-label);
 }
 
@@ -539,9 +537,7 @@ td,
 .auth-message,
 .auth-footnote,
 .auth-loading > span,
-.team-message,
-.team-row small,
-.team-role,
+.role-note,
 .failed-operations,
 .stock-conflict-row small {
   font-size: var(--type-caption);
@@ -658,8 +654,7 @@ td {
 }
 
 .cash-stat span,
-.report-product-row small,
-.team-row small {
+.report-product-row small {
   font-size: var(--type-caption);
 }
 
@@ -936,10 +931,6 @@ td {
   border-color: var(--color-danger-border);
   color: var(--color-danger);
   background: var(--color-danger-surface);
-}
-
-.team-form .button {
-  min-height: var(--control-height);
 }
 
 .below-grid {

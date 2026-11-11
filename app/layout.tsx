@@ -3,6 +3,9 @@ import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 import "./design-system.css";
 import "./branding.css";
+import "./scenic-ui.css";
+import "./home-dashboard.css";
+import "./platform-admin.css";
 import ServiceWorkerRegistration from "./components/service-worker-registration";
 
 const bodyFont = DM_Sans({

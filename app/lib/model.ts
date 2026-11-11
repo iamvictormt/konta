@@ -1,3 +1,5 @@
+import type { StoreModuleId } from "./store-modules";
+
 export type SyncState = "synced" | "pending" | "failed";
 
 export type Product = {
@@ -22,6 +24,7 @@ export type SaleLine = {
 export type Sale = {
   id: string;
   createdAt: string;
+  cashSessionId?: string;
   items: SaleLine[];
   total: number;
   received: number;
@@ -33,6 +36,7 @@ export type Sale = {
 export type Expense = {
   id: string;
   createdAt: string;
+  cashSessionId?: string;
   description: string;
   category: string;
   amount: number;
@@ -40,15 +44,33 @@ export type Expense = {
   demo?: boolean;
 };
 
+export type CashSession = {
+  id: string;
+  deviceId: string;
+  openedBy: string;
+  openedByName?: string;
+  openedAt: string;
+  openingAmount: number;
+  status: "open" | "closed";
+  closedBy?: string;
+  closedByName?: string;
+  closedAt?: string;
+  expectedAmount?: number;
+  countedAmount?: number;
+  differenceAmount?: number;
+  syncState: SyncState;
+};
+
 export type OutboxOperation = {
   id: string;
-  type: "product.save" | "sale.create" | "expense.create";
+  type: "product.save" | "sale.create" | "expense.create" | "cash-session.open" | "cash-session.close";
   createdAt: string;
   actorId: string;
   deviceId: string;
+  sequence?: number;
   state: "pending" | "failed";
   lastError?: string;
-  payload: Product | Sale | Expense;
+  payload: Product | Sale | Expense | CashSession;
 };
 
 export type StockConflict = {
@@ -69,13 +91,15 @@ export type CommerceProfile = {
   email: string;
   role: "admin" | "collaborator";
   organizationId: string;
+  enabledModules: StoreModuleId[];
+  isOwner: boolean;
+  isPlatformAdmin: boolean;
 };
 
 export type CommerceData = {
   products: Product[];
   sales: Sale[];
   expenses: Expense[];
+  cashSessions: CashSession[];
   stockConflicts: StockConflict[];
 };
-
-export const OPENING_CASH = 0;

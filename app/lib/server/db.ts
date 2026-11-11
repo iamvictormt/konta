@@ -61,4 +61,3 @@ export async function inTransaction<T>(work: (client: PoolClient) => Promise<T>)
   }
 }
 
-export const DEFAULT_ORGANIZATION_ID = "default";

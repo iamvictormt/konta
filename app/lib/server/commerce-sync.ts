@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { Expense, Product, Sale, SaleLine } from "../model";
+import type { CashSession, Expense, Product, Sale, SaleLine } from "../model";
 import { execute, inTransaction, queryAll, queryOne, type SqlExecutor, type SqlRow } from "./db";
 import type { CommerceActor } from "./actor";
 
@@ -28,6 +28,7 @@ const saleLineSchema = z.object({
 const saleSchema = z.object({
   id: z.string().min(1).max(100),
   createdAt: z.iso.datetime(),
+  cashSessionId: z.string().uuid().optional(),
   items: z.array(saleLineSchema).min(1).max(100),
   total: z.number().int().min(0).max(2_000_000_000),
   received: z.number().int().min(0).max(2_000_000_000),
@@ -46,9 +47,20 @@ const saleSchema = z.object({
 const expenseSchema = z.object({
   id: z.string().min(1).max(100),
   createdAt: z.iso.datetime(),
+  cashSessionId: z.string().uuid().optional(),
   description: z.string().trim().min(1).max(240),
   category: z.string().trim().min(1).max(80),
   amount: z.number().int().min(1).max(2_000_000_000),
+});
+
+const cashSessionOpenSchema = z.object({
+  id: z.string().uuid(),
+  openingAmount: z.number().int().min(0).max(2_000_000_000),
+});
+
+const cashSessionCloseSchema = z.object({
+  id: z.string().uuid(),
+  countedAmount: z.number().int().min(0).max(2_000_000_000),
 });
 
 export const syncOperationSchema = z.discriminatedUnion("type", [
@@ -76,6 +88,22 @@ export const syncOperationSchema = z.discriminatedUnion("type", [
     deviceId: z.string().min(1).max(100),
     payload: expenseSchema,
   }),
+  z.object({
+    id: z.string().uuid(),
+    type: z.literal("cash-session.open"),
+    createdAt: z.iso.datetime(),
+    actorId: z.string().min(1).max(100),
+    deviceId: z.string().min(1).max(100),
+    payload: cashSessionOpenSchema,
+  }),
+  z.object({
+    id: z.string().uuid(),
+    type: z.literal("cash-session.close"),
+    createdAt: z.iso.datetime(),
+    actorId: z.string().min(1).max(100),
+    deviceId: z.string().min(1).max(100),
+    payload: cashSessionCloseSchema,
+  }),
 ]);
 
 export type SyncOperation = z.infer<typeof syncOperationSchema>;
@@ -96,14 +124,19 @@ type ProductRow = SqlRow & {
   price: number; cost: number; emoji: string;
 };
 type SaleRow = SqlRow & {
-  id: string; created_at: string; total: number; received: number; change_amount: number;
+  id: string; created_at: string; cash_session_id: string | null; total: number; received: number; change_amount: number;
 };
 type SaleLineRow = SqlRow & {
   sale_id: string; product_id: string; name: string; quantity: number;
   unit_price: number; unit_cost: number; position: number;
 };
 type ExpenseRow = SqlRow & {
-  id: string; created_at: string; description: string; category: string; amount: number;
+  id: string; created_at: string; cash_session_id: string | null; description: string; category: string; amount: number;
+};
+type CashSessionRow = SqlRow & {
+  id: string; device_id: string; opened_by: string; opened_by_name: string | null; opened_at: string;
+  opening_amount: number | string; status: "open" | "closed"; closed_by: string | null; closed_by_name: string | null;
+  closed_at: string | null; expected_amount: number | string | null; counted_amount: number | string | null; difference_amount: number | string | null;
 };
 type ConflictRow = SqlRow & {
   id: string; sale_id: string; product_id: string; product_name: string; device_id: string;
@@ -132,6 +165,25 @@ function mapConflict(row: ConflictRow): StockConflict {
   };
 }
 
+function mapCashSession(row: CashSessionRow): CashSession {
+  return {
+    id: row.id,
+    deviceId: row.device_id,
+    openedBy: row.opened_by,
+    openedByName: row.opened_by_name ?? undefined,
+    openedAt: row.opened_at,
+    openingAmount: Number(row.opening_amount),
+    status: row.status,
+    closedBy: row.closed_by ?? undefined,
+    closedByName: row.closed_by_name ?? undefined,
+    closedAt: row.closed_at ?? undefined,
+    expectedAmount: row.expected_amount === null ? undefined : Number(row.expected_amount),
+    countedAmount: row.counted_amount === null ? undefined : Number(row.counted_amount),
+    differenceAmount: row.difference_amount === null ? undefined : Number(row.difference_amount),
+    syncState: "synced",
+  };
+}
+
 export async function readCommerceSnapshot(organizationId: string) {
   return inTransaction(async (client) => {
     const productRows = await queryAll<ProductRow>(
@@ -139,7 +191,7 @@ export async function readCommerceSnapshot(organizationId: string) {
       [organizationId], client,
     );
     const sales = await queryAll<SaleRow>(
-      "SELECT id, created_at, total, received, change_amount FROM commerce_sales WHERE organization_id = $1 ORDER BY created_at DESC",
+      "SELECT id, created_at, cash_session_id, total, received, change_amount FROM commerce_sales WHERE organization_id = $1 ORDER BY created_at DESC",
       [organizationId], client,
     );
     const saleLines = await queryAll<SaleLineRow>(
@@ -147,7 +199,18 @@ export async function readCommerceSnapshot(organizationId: string) {
       [organizationId], client,
     );
     const expenseRows = await queryAll<ExpenseRow>(
-      "SELECT id, created_at, description, category, amount FROM commerce_expenses WHERE organization_id = $1 ORDER BY created_at DESC",
+      "SELECT id, created_at, cash_session_id, description, category, amount FROM commerce_expenses WHERE organization_id = $1 ORDER BY created_at DESC",
+      [organizationId], client,
+    );
+    const cashSessionRows = await queryAll<CashSessionRow>(
+      `SELECT s.id, s.device_id, s.opened_by, opener.name AS opened_by_name, s.opened_at,
+              s.opening_amount, s.status, s.closed_by, closer.name AS closed_by_name,
+              s.closed_at, s.expected_amount, s.counted_amount, s.difference_amount
+       FROM commerce_cash_sessions s
+       LEFT JOIN "user" opener ON opener.id = s.opened_by
+       LEFT JOIN "user" closer ON closer.id = s.closed_by
+       WHERE s.organization_id = $1
+       ORDER BY s.opened_at DESC`,
       [organizationId], client,
     );
     const conflictRows = await queryAll<ConflictRow>(
@@ -165,6 +228,7 @@ export async function readCommerceSnapshot(organizationId: string) {
     const mappedSales: Sale[] = sales.map((row) => ({
       id: row.id,
       createdAt: row.created_at,
+      cashSessionId: row.cash_session_id ?? undefined,
       total: row.total,
       received: row.received,
       change: row.change_amount,
@@ -175,6 +239,7 @@ export async function readCommerceSnapshot(organizationId: string) {
     const expenses: Expense[] = expenseRows.map((row) => ({
       id: row.id,
       createdAt: row.created_at,
+      cashSessionId: row.cash_session_id ?? undefined,
       description: row.description,
       category: row.category,
       amount: row.amount,
@@ -185,6 +250,7 @@ export async function readCommerceSnapshot(organizationId: string) {
       products: productRows.map(mapProduct),
       sales: mappedSales,
       expenses,
+      cashSessions: cashSessionRows.map(mapCashSession),
       stockConflicts: conflictRows.map(mapConflict),
     };
   });
@@ -197,10 +263,47 @@ function assertSaleAmounts(sale: Pick<Sale, "items" | "total" | "received" | "ch
   }
 }
 
+type CashSessionWriteRow = SqlRow & {
+  id: string;
+  device_id: string;
+  opening_amount: number | string;
+  status: "open" | "closed";
+  counted_amount: number | string | null;
+};
+
+async function lockCashSessionForOperation(sessionId: string, organizationId: string, deviceId: string, client: SqlExecutor) {
+  const session = await queryOne<CashSessionWriteRow>(
+    "SELECT id, device_id, opening_amount, status, counted_amount FROM commerce_cash_sessions WHERE id = $1 AND organization_id = $2 FOR UPDATE",
+    [sessionId, organizationId], client,
+  );
+  if (!session) throw new Error("A sessão de caixa da operação não existe nesta loja.");
+  if (session.device_id !== deviceId) throw new Error("A sessão de caixa pertence a outro dispositivo.");
+  return session;
+}
+
+async function recalculateClosedCashSession(session: CashSessionWriteRow, client: SqlExecutor) {
+  if (session.status !== "closed" || session.counted_amount === null) return;
+  const totals = await queryOne<SqlRow & { sales_total: number | string; expenses_total: number | string }>(
+    `SELECT
+       COALESCE((SELECT SUM(total) FROM commerce_sales WHERE cash_session_id = $1), 0) AS sales_total,
+       COALESCE((SELECT SUM(amount) FROM commerce_expenses WHERE cash_session_id = $1), 0) AS expenses_total`,
+    [session.id], client,
+  );
+  const expectedAmount = Number(session.opening_amount) + Number(totals?.sales_total ?? 0) - Number(totals?.expenses_total ?? 0);
+  const differenceAmount = Number(session.counted_amount) - expectedAmount;
+  if (!Number.isSafeInteger(expectedAmount) || !Number.isSafeInteger(differenceAmount)) {
+    throw new Error("Os valores desta sessão excedem o limite numérico suportado.");
+  }
+  await execute(
+    "UPDATE commerce_cash_sessions SET expected_amount = $1, difference_amount = $2 WHERE id = $3",
+    [expectedAmount, differenceAmount, session.id], client,
+  );
+}
+
 async function ensureActorMembership(actorId: string, actor: CommerceActor, client: SqlExecutor) {
   if (actorId !== actor.id) throw new Error("Entre na conta que registou estas operações para sincronizar.");
   const member = await queryOne<SqlRow>(
-    'SELECT id FROM "user" WHERE id = $1 AND organization_id = $2 AND banned IS NOT TRUE',
+    'SELECT id FROM "user" WHERE id = $1 AND organization_id = $2 AND store_role IS NOT NULL AND banned IS NOT TRUE',
     [actorId, actor.organizationId], client,
   );
   if (!member) throw new Error("O utilizador de origem já não tem acesso a esta loja.");
@@ -230,7 +333,7 @@ async function applyOperation(operation: SyncOperation, actor: CommerceActor): P
         `INSERT INTO processed_sync_operations
           (id, organization_id, actor_user_id, device_id, operation_type, entity_id, created_at, received_at, result_json)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, '{}')
-         ON CONFLICT (id) DO NOTHING
+         ON CONFLICT (organization_id, id) DO NOTHING
          RETURNING id`,
         [operation.id, actor.organizationId, operation.actorId, operation.deviceId, operation.type,
           operation.payload.id, operation.createdAt, new Date().toISOString()], client,
@@ -278,9 +381,12 @@ async function applyOperation(operation: SyncOperation, actor: CommerceActor): P
       } else if (operation.type === "sale.create") {
         const sale = operation.payload;
         assertSaleAmounts(sale);
+        const cashSession = sale.cashSessionId
+          ? await lockCashSessionForOperation(sale.cashSessionId, actor.organizationId, operation.deviceId, client)
+          : null;
         await execute(
-          "INSERT INTO commerce_sales (id, organization_id, actor_user_id, device_id, created_at, total, received, change_amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-          [sale.id, actor.organizationId, operation.actorId, operation.deviceId, sale.createdAt, sale.total, sale.received, sale.change], client,
+          "INSERT INTO commerce_sales (id, organization_id, actor_user_id, device_id, created_at, cash_session_id, total, received, change_amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+          [sale.id, actor.organizationId, operation.actorId, operation.deviceId, sale.createdAt, sale.cashSessionId ?? null, sale.total, sale.received, sale.change], client,
         );
 
         const lockedProducts = await queryAll<SqlRow & { id: string; stock: number; name: string; cost: number }>(
@@ -327,11 +433,41 @@ async function applyOperation(operation: SyncOperation, actor: CommerceActor): P
             conflicts.push(conflict);
           }
         }
-      } else {
+        if (cashSession) await recalculateClosedCashSession(cashSession, client);
+      } else if (operation.type === "expense.create") {
         const expense = operation.payload;
+        const cashSession = expense.cashSessionId
+          ? await lockCashSessionForOperation(expense.cashSessionId, actor.organizationId, operation.deviceId, client)
+          : null;
         await execute(
-          "INSERT INTO commerce_expenses (id, organization_id, actor_user_id, device_id, created_at, description, category, amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-          [expense.id, actor.organizationId, operation.actorId, operation.deviceId, expense.createdAt, expense.description, expense.category, expense.amount], client,
+          "INSERT INTO commerce_expenses (id, organization_id, actor_user_id, device_id, created_at, cash_session_id, description, category, amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+          [expense.id, actor.organizationId, operation.actorId, operation.deviceId, expense.createdAt, expense.cashSessionId ?? null, expense.description, expense.category, expense.amount], client,
+        );
+        if (cashSession) await recalculateClosedCashSession(cashSession, client);
+      } else if (operation.type === "cash-session.open") {
+        await execute(
+          "INSERT INTO commerce_cash_sessions (id, organization_id, device_id, opened_by, opened_at, opening_amount, status) VALUES ($1, $2, $3, $4, $5, $6, 'open')",
+          [operation.payload.id, actor.organizationId, operation.deviceId, operation.actorId, operation.createdAt, operation.payload.openingAmount], client,
+        );
+      } else {
+        const session = await lockCashSessionForOperation(operation.payload.id, actor.organizationId, operation.deviceId, client);
+        if (session.status !== "open") throw new Error("Esta sessão de caixa já está fechada.");
+        const totals = await queryOne<SqlRow & { sales_total: number | string; expenses_total: number | string }>(
+          `SELECT
+             COALESCE((SELECT SUM(total) FROM commerce_sales WHERE cash_session_id = $1), 0) AS sales_total,
+             COALESCE((SELECT SUM(amount) FROM commerce_expenses WHERE cash_session_id = $1), 0) AS expenses_total`,
+          [session.id], client,
+        );
+        const expectedAmount = Number(session.opening_amount) + Number(totals?.sales_total ?? 0) - Number(totals?.expenses_total ?? 0);
+        const differenceAmount = operation.payload.countedAmount - expectedAmount;
+        if (!Number.isSafeInteger(expectedAmount) || !Number.isSafeInteger(differenceAmount)) {
+          throw new Error("Os valores desta sessão excedem o limite numérico suportado.");
+        }
+        await execute(
+          `UPDATE commerce_cash_sessions
+           SET status = 'closed', closed_by = $1, closed_at = $2, expected_amount = $3, counted_amount = $4, difference_amount = $5
+           WHERE id = $6 AND organization_id = $7`,
+          [operation.actorId, operation.createdAt, expectedAmount, operation.payload.countedAmount, differenceAmount, session.id, actor.organizationId], client,
         );
       }
 
@@ -356,11 +492,17 @@ async function applyOperation(operation: SyncOperation, actor: CommerceActor): P
       "Já existe um produto com esse código nesta loja.",
       "Valores da venda não correspondem aos artigos e ao troco.",
       "Um produto da venda já não existe nesta loja.",
+      "A sessão de caixa da operação não existe nesta loja.",
+      "A sessão de caixa pertence a outro dispositivo.",
+      "Esta sessão de caixa já está fechada.",
+      "Os valores desta sessão excedem o limite numérico suportado.",
     ];
     const safeMessage = safeMessages.includes(message)
       ? message
       : databaseError.constraint === "commerce_products_organization_sku_ci_unique"
         ? "Já existe um produto com esse código nesta loja."
+        : databaseError.constraint === "commerce_cash_sessions_one_open_per_device"
+          ? "Já existe uma sessão de caixa aberta neste dispositivo."
         : "O servidor não conseguiu aceitar esta operação. Reveja os dados ou tente novamente.";
     return { id: operation.id, status: "rejected", error: safeMessage, retryable: isTemporary };
   }
@@ -368,7 +510,11 @@ async function applyOperation(operation: SyncOperation, actor: CommerceActor): P
 
 export async function processSyncBatch(operations: SyncOperation[], actor: CommerceActor) {
   const results: SyncResult[] = [];
-  for (const operation of operations) results.push(await applyOperation(operation, actor));
+  for (const operation of operations) {
+    const result = await applyOperation(operation, actor);
+    results.push(result);
+    if (result.status === "rejected") break;
+  }
   return results;
 }
 

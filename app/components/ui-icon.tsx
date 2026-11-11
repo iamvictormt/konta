@@ -26,7 +26,9 @@ export type IconName =
   | "alert"
   | "store"
   | "user"
-  | "more";
+  | "more"
+  | "bars"
+  | "star";
 
 type IconProps = SVGProps<SVGSVGElement> & { name: IconName; size?: number };
 
@@ -70,6 +72,8 @@ export default function Icon({ name, size = 20, ...props }: IconProps) {
     case "alert": return <svg {...common}><path d="M12 3 2.8 19h18.4L12 3Z"/><path d="M12 9v4M12 16.5h.01"/></svg>;
     case "store": return <svg {...common}><path d="M3 10h18M5 10v10h14V10M4 10 6 4h12l2 6"/><path d="M9 20v-6h6v6M4 10a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0"/></svg>;
     case "user": return <svg {...common}><circle cx="12" cy="8" r="3.5"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>;
+    case "bars": return <svg {...common}><rect x="3.5" y="12" width="4.5" height="8.5" rx="1" fill="currentColor"/><rect x="9.8" y="4" width="4.5" height="16.5" rx="1" fill="currentColor"/><rect x="16.1" y="8.5" width="4.5" height="12" rx="1" fill="currentColor"/></svg>;
+    case "star": return <svg {...common}><path d="m12 3.2 2.5 5.4 5.9.7-4.4 4 1.2 5.8L12 16.2l-5.2 2.9L8 13.3l-4.4-4 5.9-.7L12 3.2Z" fill="currentColor"/></svg>;
     case "more": return <svg {...common}><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/></svg>;
   }
 }

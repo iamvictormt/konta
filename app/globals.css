@@ -2037,70 +2037,20 @@ td {
   margin-top: 15px;
 }
 
-.team-panel {
+.stock-conflicts-panel {
   margin-top: 15px;
   padding-bottom: 15px;
 }
 
-.team-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr auto;
-  align-items: end;
-  gap: 12px;
-  padding: 0 18px 16px;
-}
-
-.team-form .form-field {
-
-}
-
-.team-message {
-  margin: 0 18px 12px;
-  color: var(--forest);
-  font-size: 12px;
-}
-
-.team-list {
+.stock-conflicts-list {
   display: grid;
   padding: 0 18px;
 }
 
-.team-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 62px;
-  border-top: 1px solid var(--line);
-}
-
-.team-row>span:nth-child(2) {
-  display: grid;
-  gap: 3px;
-  flex: 1;
-}
-
-.team-row small {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.team-role {
+.role-note {
   color: var(--forest);
   font-size: 11px;
   font-weight: 700;
-}
-
-.team-row .avatar {
-  flex: none;
-}
-
-@media (max-width:900px) {
-  .team-form {
-    grid-template-columns: 1fr 1fr;
-  }
-  .team-form .button {
-    min-height: 42px;
-  }
 }
 
 @media (max-width:620px) {
@@ -2111,20 +2061,8 @@ td {
   .auth-card h1 {
     font-size: 28px;
   }
-  .team-form {
-    grid-template-columns: 1fr;
-    padding: 0 13px 14px;
-  }
-  .team-list {
+  .stock-conflicts-list {
     padding: 0 13px;
-  }
-  .team-row {
-    gap: 9px;
-  }
-  .team-role {
-    max-width: 115px;
-    text-align: right;
-    font-size: 10px;
   }
   .sync-time {
     font-size: 9px;
@@ -2184,6 +2122,323 @@ td {
 .stock-conflict-message {
   grid-column: 1/-1;
   color: var(--forest) !important;
+}
+
+.cash-session-panel {
+  margin-bottom: 16px;
+  padding: 22px 24px;
+}
+
+.cash-session-heading {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+}
+
+.cash-session-heading > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.cash-session-heading h2 {
+  margin: 0;
+  color: var(--forest-ink);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.cash-session-heading p {
+  margin: 5px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.cash-session-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  color: var(--forest);
+  background: var(--color-surface-soft);
+}
+
+.cash-session-icon.is-open {
+  color: #075c3d;
+  background: #e4f2e7;
+}
+
+.cash-session-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  max-width: 700px;
+  margin-top: 20px;
+}
+
+.cash-session-form .button {
+  min-width: 172px;
+}
+
+.cash-session-help {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 13px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.cash-session-help svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--forest);
+}
+
+.cash-session-status {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-soft);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cash-session-status.open,
+.cash-session-status.synced {
+  color: #075c3d;
+  background: #e4f2e7;
+}
+
+.cash-session-status.pending {
+  color: #79570b;
+  background: #f7efdb;
+}
+
+.cash-session-status.failed {
+  color: #8d3933;
+  background: #f8e9e5;
+}
+
+.cash-difference {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.cash-difference strong {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.cash-difference.is-short,
+.cash-history-values dd.is-negative {
+  color: var(--color-danger);
+}
+
+.cash-difference.is-surplus,
+.cash-history-values dd.is-positive {
+  color: #087149;
+}
+
+.cash-difference.is-balanced {
+  color: #087149;
+}
+
+.cash-summary--session {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.cash-summary--session .cash-stat strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.cash-session-section {
+  margin-top: 16px;
+  overflow: hidden;
+}
+
+.cash-session-section .panel-header > div {
+  min-width: 0;
+}
+
+.cash-session-section .panel-subtitle {
+  margin-left: 27px;
+}
+
+.cash-history-list {
+  display: grid;
+}
+
+.cash-history-row {
+  padding: 15px 21px;
+  border-top: 1px solid var(--color-border);
+}
+
+.cash-history-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cash-history-title > strong {
+  color: var(--color-text);
+  font-size: 11px;
+}
+
+.cash-history-actors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 6px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+}
+
+.cash-history-actors strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.cash-history-values {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin: 12px 0 0;
+}
+
+.cash-history-values > div {
+  min-width: 0;
+}
+
+.cash-history-values dt {
+  color: var(--color-text-secondary);
+  font-size: 9px;
+}
+
+.cash-history-values dd {
+  margin: 4px 0 0;
+  color: var(--color-text);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.cash-empty-state {
+  padding: 14px 20px 17px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.cash-history-empty {
+  padding-right: 21px;
+  padding-left: 21px;
+}
+
+.cash-session-notice span {
+  flex: 1;
+}
+
+.cash-session-notice .button {
+  flex: none;
+}
+
+@media (max-width: 900px) {
+  .cash-summary--session {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cash-history-values {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 10px;
+  }
+}
+
+@media (max-width: 620px) {
+  .cash-session-panel {
+    padding: 17px 15px;
+  }
+  .cash-session-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .cash-session-heading > div {
+    flex-basis: calc(100% - 58px);
+  }
+  .cash-session-heading h2 {
+    font-size: 14px;
+  }
+  .cash-session-heading p {
+    font-size: 10px;
+  }
+  .cash-session-form {
+    grid-template-columns: 1fr;
+    margin-top: 16px;
+  }
+  .cash-session-form .button {
+    width: 100%;
+  }
+  .cash-session-status {
+    margin-left: 55px;
+  }
+  .cash-difference {
+    flex-direction: column;
+    font-size: 10px;
+  }
+  .cash-summary--session {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cash-summary--session .cash-stat {
+    min-width: 0;
+    padding: 12px;
+  }
+  .cash-summary--session .cash-stat strong {
+    font-size: 16px;
+    overflow-wrap: anywhere;
+  }
+  .cash-session-section .panel-header {
+    flex-wrap: wrap;
+  }
+  .cash-history-row {
+    padding: 13px 14px;
+  }
+  .cash-empty-state {
+    padding: 12px 14px 15px;
+  }
+  .cash-history-title {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .cash-history-values {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .cash-session-notice {
+    flex-wrap: wrap;
+  }
+  .cash-session-notice .button {
+    width: 100%;
+  }
 }
 
 @media (max-width:620px) {

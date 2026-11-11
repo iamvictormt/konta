@@ -1,5 +1,6 @@
 import { getCommerceActor } from "@/app/lib/server/actor";
 import { readCommerceSnapshot } from "@/app/lib/server/commerce-sync";
+import { queryOne, type SqlRow } from "@/app/lib/server/db";
 
 export async function GET(request: Request) {
   try {
@@ -9,6 +10,11 @@ export async function GET(request: Request) {
     }
 
     const data = await readCommerceSnapshot(actor.organizationId);
+    const organization = await queryOne<SqlRow & { name: string; currency_code: string; enabled_modules: typeof actor.enabledModules }>(
+      "SELECT name, currency_code, enabled_modules FROM organizations WHERE id = $1 AND status = 'active'",
+      [actor.organizationId],
+    );
+    if (!organization) return Response.json({ error: { code: "STORE_NOT_FOUND", message: "A loja desta conta já não está disponível." } }, { status: 404, headers: { "Cache-Control": "no-store" } });
     if (actor.role !== "admin") {
       data.products = data.products.map((product) => ({ ...product, cost: 0 }));
       data.sales = data.sales.map((sale) => ({
@@ -18,8 +24,17 @@ export async function GET(request: Request) {
     }
 
     return Response.json({
-      organization: { id: actor.organizationId, name: process.env.KONTA_STORE_NAME ?? "Minha Loja", currency: "Db" },
-      profile: { id: actor.id, name: actor.name, email: actor.email, role: actor.role, organizationId: actor.organizationId },
+      organization: { id: actor.organizationId, name: organization.name, currency: organization.currency_code, enabledModules: organization.enabled_modules },
+      profile: {
+        id: actor.id,
+        name: actor.name,
+        email: actor.email,
+        role: actor.role,
+        organizationId: actor.organizationId,
+        enabledModules: actor.enabledModules,
+        isOwner: actor.isOwner,
+        isPlatformAdmin: actor.isPlatformAdmin,
+      },
       data,
       syncedAt: new Date().toISOString(),
     }, { headers: { "Cache-Control": "no-store" } });

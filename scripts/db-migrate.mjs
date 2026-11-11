@@ -50,13 +50,6 @@ try {
         throw error;
       }
     }
-
-    await client.query(
-      `INSERT INTO organizations (id, name, currency_code, created_at)
-       VALUES ($1, $2, 'Db', $3)
-       ON CONFLICT (id) DO NOTHING`,
-      ["default", process.env.KONTA_STORE_NAME ?? "Minha Loja", new Date().toISOString()],
-    );
   } finally {
     client.release();
   }

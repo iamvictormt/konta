@@ -1,6 +1,11 @@
 import { betterAuth } from "better-auth";
 import { admin } from "better-auth/plugins";
-import { DEFAULT_ORGANIZATION_ID, database } from "./db";
+import { defaultAc } from "better-auth/plugins/admin/access";
+import { database } from "./db";
+
+const storeAdministratorRole = defaultAc.newRole({ user: [], session: [] });
+const collaboratorRole = defaultAc.newRole({ user: [], session: [] });
+const platformAdministratorRole = defaultAc.newRole({ user: [], session: [] });
 
 const secret = process.env.BETTER_AUTH_SECRET;
 
@@ -28,15 +33,47 @@ export const auth = betterAuth({
     database: { validateSchema: false },
   },
   user: {
+    deleteUser: {
+      enabled: false,
+      beforeDelete: async (user) => {
+        const result = await database.query<{ is_store_owner: boolean }>(
+          'SELECT is_store_owner FROM "user" WHERE id = $1',
+          [user.id],
+        );
+        if (result.rows[0]?.is_store_owner) {
+          throw new Error("Transfira a propriedade da loja antes de remover esta conta.");
+        }
+      },
+    },
     additionalFields: {
       organizationId: {
         type: "string",
-        required: true,
-        defaultValue: DEFAULT_ORGANIZATION_ID,
+        required: false,
         input: false,
         fieldName: "organization_id",
       },
+      storeRole: {
+        type: "string",
+        required: false,
+        input: false,
+        fieldName: "store_role",
+      },
+      isStoreOwner: {
+        type: "boolean",
+        required: true,
+        defaultValue: false,
+        input: false,
+        fieldName: "is_store_owner",
+      },
     },
   },
-  plugins: [admin()],
+  plugins: [admin({
+    defaultRole: "collaborator",
+    adminRoles: ["platform-admin"],
+    roles: {
+      "store-admin": storeAdministratorRole,
+      collaborator: collaboratorRole,
+      "platform-admin": platformAdministratorRole,
+    },
+  })],
 });
