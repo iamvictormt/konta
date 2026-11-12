@@ -86,7 +86,8 @@ export function ResellersView({ online, products, deviceId, cash, onRefreshComme
       </div>
       <section className="panel product-table">
         <div className="panel-header"><h2 className="panel-title"><span className="panel-title-icon"><Icon name="box" size={18} /></span>Entregas</h2></div>
-        {deliveries.length === 0 ? <div className="empty-row">Ainda não há entregas para este revendedor.</div> : <div className="table-scroll">
+        {deliveries.length === 0 ? <div className="empty-row">Ainda não há entregas para este revendedor.</div> : <>
+          <div className="table-scroll mobile-table-source">
           <table aria-label="Entregas">
             <thead><tr><th>Produto e data</th><th>Valor por un.</th><th>Entregues</th><th>Vendidas</th><th>Devolvidas</th><th>Com o revendedor</th></tr></thead>
             <tbody>{deliveries.map((line) => <tr key={line.id}>
@@ -94,7 +95,19 @@ export function ResellersView({ online, products, deviceId, cash, onRefreshComme
               <td>{money(line.unitPrice)}</td><td>{line.delivered}</td><td>{line.sold}</td><td>{line.returned}</td><td>{remainingUnits(line)}</td>
             </tr>)}</tbody>
           </table>
-        </div>}
+          </div>
+          <div className="mobile-records mobile-records-in-panel">
+            {deliveries.map((line) => <article key={line.id} className="mobile-record">
+              <div className="mobile-record-heading"><div><h3>{line.productName}</h3><p>{dayLabel(new Date(line.createdAt), { dateStyle: "short" })} · {money(line.unitPrice)}/un.</p></div></div>
+              <dl className="mobile-record-values">
+                <div><dt>Com o revendedor</dt><dd>{remainingUnits(line)}</dd></div>
+                <div><dt>Entregues</dt><dd>{line.delivered}</dd></div>
+                <div><dt>Vendidas</dt><dd>{line.sold}</dd></div>
+                <div><dt>Devolvidas</dt><dd>{line.returned}</dd></div>
+              </dl>
+            </article>)}
+          </div>
+        </>}
       </section>
       <section className="panel cash-session-section">
         <div className="panel-header"><h2 className="panel-title"><span className="panel-title-icon"><Icon name="receipt" size={18} /></span>Acertos e recebimentos</h2></div>

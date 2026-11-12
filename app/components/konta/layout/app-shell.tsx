@@ -11,7 +11,7 @@ import { MobileHeader, useMobileDrawer } from "./mobile-header";
 import { SidebarSignOut } from "./sidebar-sign-out";
 import { SidebarToggle } from "./sidebar-toggle";
 
-const TABLET_QUERY = "(min-width: 651px) and (max-width: 900px)";
+const TABLET_QUERY = "(min-width: 651px) and (max-width: 1100px)";
 
 function subscribeToTabletQuery(onChange: () => void) {
   const mediaQuery = window.matchMedia(TABLET_QUERY);
@@ -63,7 +63,7 @@ export function AppShell({
   const drawer = useMobileDrawer();
   const [sidebarOverride, setSidebarOverride] = useState<boolean | null>(null);
   const isTablet = useSyncExternalStore(subscribeToTabletQuery, getTabletQuerySnapshot, getTabletQueryServerSnapshot);
-  const sidebarCollapsed = sidebarOverride ?? isTablet;
+  const sidebarCollapsed = (sidebarOverride ?? isTablet) && !drawer.open;
   const visibleNav = navItems.filter((item) =>
     (item.id !== "relatorios" || hasStorePermission(profile, "revenue:read")) &&
     (item.id !== "revendedores" || (profile.isOwner && profile.role === "admin")));
@@ -129,7 +129,7 @@ export function AppShell({
         <main className="page-content">
           <div className="module-switcher-bar"><ModuleSwitcher enabledModules={profile.enabledModules} currentModule="commerce" onNavigate={onModuleNavigate} /></div>
           {!online && <div className="offline-notice"><Icon name="wifi-off" size={17} /><span><strong>Modo offline.</strong> Os registos novos ficam guardados neste dispositivo até a sincronização com o servidor estar disponível.</span></div>}
-          {syncMessage && online && !dismissedSyncNotices.includes(syncNoticeKey) && <div className={`offline-notice ${syncNeedsAttention ? "error-notice" : ""}`}><Icon name={syncNeedsAttention ? "alert" : "check"} size={17} /><span>{syncMessage}{lastSyncAt && <small className="sync-time">Última sincronização: {new Date(lastSyncAt).toLocaleString("pt-PT")}</small>}</span><button className="notice-close" type="button" aria-label="Fechar aviso" onClick={() => setDismissedSyncNotices((current) => [...current, syncNoticeKey])}><Icon name="close" size={16} /></button></div>}
+          {syncMessage && online && !dismissedSyncNotices.includes(syncNoticeKey) && <div className={`offline-notice ${syncNeedsAttention ? "error-notice" : syncMessage === "Dados sincronizados." ? "sync-success-notice" : ""}`}><Icon name={syncNeedsAttention ? "alert" : "check"} size={17} /><span>{syncMessage}{lastSyncAt && <small className="sync-time">Última sincronização: {new Date(lastSyncAt).toLocaleString("pt-PT")}</small>}</span><button className="notice-close" type="button" aria-label="Fechar aviso" onClick={() => setDismissedSyncNotices((current) => [...current, syncNoticeKey])}><Icon name="close" size={16} /></button></div>}
           {storageError && <div className="offline-notice error-notice"><Icon name="alert" size={17} /><span>{storageError}</span></div>}
           {stockConflictCount > 0 && <div className="offline-notice error-notice"><Icon name="alert" size={17} /><span>{stockConflictCount} divergência(s) de stock entre dispositivos. As vendas foram preservadas; o administrador deve reconciliar o saldo.</span></div>}
           {children}
