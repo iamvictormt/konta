@@ -15,12 +15,14 @@ export function CashView({ sessions, sales, expenses, cashBalance, onOpenSession
   const selectedSession = activeSession ?? sessions[0] ?? null;
   const sessionSales = selectedSession ? sales.filter((sale) => sale.cashSessionId === selectedSession.id) : [];
   const sessionExpenses = selectedSession ? expenses.filter((expense) => expense.cashSessionId === selectedSession.id) : [];
-  const totalSales = sessionSales.reduce((sum, sale) => sum + sale.total, 0);
+  const receipts = selectedSession?.resellerReceipts ?? [];
+  const totalSales = sessionSales.reduce((sum, sale) => sum + sale.total, 0) + receipts.reduce((sum, receipt) => sum + receipt.amount, 0);
   const totalExpenses = sessionExpenses.reduce((sum, expense) => sum + expense.amount, 0);
   const displayedBalance = selectedSession ? selectedSession.openingAmount + totalSales - totalExpenses : 0;
   const countedValue = countedAmount ? Number(countedAmount) : null;
   const difference = countedValue === null ? null : countedValue - cashBalance;
   const movements: Activity[] = [
+    ...receipts.map((receipt) => ({ id: receipt.id, createdAt: receipt.createdAt, title: "Recebimento de revendedor", detail: receipt.name, amount: receipt.amount, kind: "sale" as const })),
     ...sessionSales.map((sale) => ({ id: sale.id, createdAt: sale.createdAt, title: "Venda em dinheiro", detail: sale.syncState === "failed" ? "Falha de sincronização" : sale.syncState === "pending" ? "Pendente de sincronização" : "Registada", amount: sale.total, kind: "sale" as const })),
     ...sessionExpenses.map((expense) => ({ id: expense.id, createdAt: expense.createdAt, title: expense.description, detail: expense.syncState === "failed" ? "Falha de sincronização" : expense.syncState === "pending" ? "Pendente de sincronização" : expense.category, amount: expense.amount, kind: "expense" as const })),
   ].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
@@ -87,7 +89,8 @@ export function CashView({ sessions, sales, expenses, cashBalance, onOpenSession
         </div>
       </div>
       {sessions.length === 0 ? <div className="empty-row cash-empty-state cash-history-empty">Ainda não há aberturas de caixa neste dispositivo.</div> : <div className="cash-history-list">{sessions.slice(0, 8).map((session) => {
-        const sessionSaleTotal = sales.filter((sale) => sale.cashSessionId === session.id).reduce((sum, sale) => sum + sale.total, 0);
+        const sessionSaleTotal = sales.filter((sale) => sale.cashSessionId === session.id).reduce((sum, sale) => sum + sale.total, 0)
+          + (session.resellerReceipts ?? []).reduce((sum, receipt) => sum + receipt.amount, 0);
         const sessionExpenseTotal = expenses.filter((expense) => expense.cashSessionId === session.id).reduce((sum, expense) => sum + expense.amount, 0);
         const expected = session.openingAmount + sessionSaleTotal - sessionExpenseTotal;
         const actualDifference = session.countedAmount === undefined ? undefined : session.countedAmount - expected;
@@ -97,7 +100,7 @@ export function CashView({ sessions, sales, expenses, cashBalance, onOpenSession
             <span>Aberta por <strong>{session.openedByName ?? "Utilizador não identificado"}</strong></span>
             {session.closedAt && <span>Fechada por <strong>{session.closedByName ?? "Utilizador não identificado"}</strong></span>}
           </p>
-          <dl className="cash-history-values"><div><dt>Fundo</dt><dd>{money(session.openingAmount)}</dd></div><div><dt>Vendas</dt><dd>{money(sessionSaleTotal)}</dd></div><div><dt>Despesas</dt><dd>{money(sessionExpenseTotal)}</dd></div><div><dt>Esperado</dt><dd>{money(expected)}</dd></div><div><dt>Contado</dt><dd>{session.countedAmount === undefined ? "—" : money(session.countedAmount)}</dd></div><div><dt>Diferença</dt><dd className={actualDifference === undefined ? "" : actualDifference < 0 ? "is-negative" : actualDifference > 0 ? "is-positive" : ""}>{actualDifference === undefined ? "—" : money(actualDifference)}</dd></div></dl>
+          <dl className="cash-history-values"><div><dt>Fundo</dt><dd>{money(session.openingAmount)}</dd></div><div><dt>Entradas</dt><dd>{money(sessionSaleTotal)}</dd></div><div><dt>Despesas</dt><dd>{money(sessionExpenseTotal)}</dd></div><div><dt>Esperado</dt><dd>{money(expected)}</dd></div><div><dt>Contado</dt><dd>{session.countedAmount === undefined ? "—" : money(session.countedAmount)}</dd></div><div><dt>Diferença</dt><dd className={actualDifference === undefined ? "" : actualDifference < 0 ? "is-negative" : actualDifference > 0 ? "is-positive" : ""}>{actualDifference === undefined ? "—" : money(actualDifference)}</dd></div></dl>
         </article>;
       })}</div>}
     </section>

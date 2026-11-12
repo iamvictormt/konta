@@ -11,6 +11,7 @@ import { useCommerceSession } from "./konta/hooks/use-commerce-session";
 import { moduleForPath, STORE_MODULE_ROUTES, type StoreModuleId } from "../lib/store-modules";
 import { CommerceWorkspace } from "./konta/commerce-workspace";
 import type { Section } from "./konta/types";
+import { hasStorePermission } from "@/app/lib/store-permissions";
 
 export default function KontaApp() {
   const pathname = usePathname();
@@ -20,6 +21,9 @@ export default function KontaApp() {
   const [toast, setToast] = useState("");
   const session = useCommerceSession(setToast);
   const { profile, authReady, online, authMessage, acceptProfile, storeName, syncMessage, signOut } = session;
+  const canViewRevenue = profile ? hasStorePermission(profile, "revenue:read") : false;
+  const canManageResellers = profile?.isOwner === true && profile.role === "admin";
+  const signedIn = Boolean(profile);
 
   useEffect(() => {
     if (!authReady) return;
@@ -38,14 +42,16 @@ export default function KontaApp() {
   }, [toast]);
 
   useEffect(() => {
-    if (currentModule === "commerce" && profile?.role === "collaborator" && section === "relatorios") {
+    if (signedIn && currentModule === "commerce" && (
+      (section === "relatorios" && !canViewRevenue) || (section === "revendedores" && !canManageResellers)
+    )) {
       window.history.replaceState(null, "", sectionPaths.inicio);
       const noticeTimer = window.setTimeout(() => {
-        setToast("Os relatórios financeiros estão disponíveis para o administrador.");
+        setToast(section === "revendedores" ? "A gestão de revendedores é reservada ao proprietário." : "A sua conta não tem acesso à faturação.");
       }, 0);
       return () => window.clearTimeout(noticeTimer);
     }
-  }, [profile?.role, section, currentModule]);
+  }, [signedIn, canViewRevenue, canManageResellers, section, currentModule]);
 
   function changeModule(moduleId: StoreModuleId) {
     if (!profile?.enabledModules.includes(moduleId)) return;
@@ -57,8 +63,8 @@ export default function KontaApp() {
   }
 
   function changeSection(nextSection: Section) {
-    if (profile?.role !== "admin" && nextSection === "relatorios") {
-      setToast("Os relatórios financeiros estão disponíveis para o administrador.");
+    if (!canViewRevenue && nextSection === "relatorios") {
+      setToast("A sua conta não tem acesso à faturação.");
       return;
     }
     if (pathname !== sectionPaths[nextSection]) {

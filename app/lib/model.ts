@@ -1,4 +1,5 @@
 import type { StoreModuleId } from "./store-modules";
+import type { StorePermission } from "./store-permissions";
 
 export type SyncState = "synced" | "pending" | "failed";
 
@@ -60,6 +61,7 @@ export type CashSession = {
   expectedAmount?: number;
   countedAmount?: number;
   differenceAmount?: number;
+  resellerReceipts?: { id: string; name: string; amount: number; createdAt: string }[];
   syncState: SyncState;
 };
 
@@ -92,6 +94,7 @@ export type CommerceProfile = {
   name: string;
   email: string;
   role: "admin" | "collaborator";
+  permissions?: StorePermission[];
   organizationId: string;
   enabledModules: StoreModuleId[];
   isOwner: boolean;

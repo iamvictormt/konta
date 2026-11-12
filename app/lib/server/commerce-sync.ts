@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { CashSession, Expense, Product, Sale, SaleLine } from "../model";
 import { execute, inTransaction, queryAll, queryOne, type SqlExecutor, type SqlRow } from "./db";
 import type { CommerceActor } from "./actor";
+import { hasStorePermission, type StorePermission } from "../store-permissions";
 import { cloudinaryConfig, productImageId, productImageUrl } from "./product-images";
 
 const productSchema = z.object({
@@ -137,6 +138,7 @@ type ExpenseRow = SqlRow & {
   id: string; created_at: string; cash_session_id: string | null; description: string; category: string; amount: number;
 };
 type CashSessionRow = SqlRow & {
+  reseller_receipts: CashSession["resellerReceipts"];
   id: string; device_id: string; opened_by: string; opened_by_name: string | null; opened_at: string;
   opening_amount: number | string; status: "open" | "closed"; closed_by: string | null; closed_by_name: string | null;
   closed_at: string | null; expected_amount: number | string | null; counted_amount: number | string | null; difference_amount: number | string | null;
@@ -170,6 +172,7 @@ function mapConflict(row: ConflictRow): StockConflict {
 
 function mapCashSession(row: CashSessionRow): CashSession {
   return {
+    resellerReceipts: row.reseller_receipts,
     id: row.id,
     deviceId: row.device_id,
     openedBy: row.opened_by,
@@ -187,36 +190,40 @@ function mapCashSession(row: CashSessionRow): CashSession {
   };
 }
 
-export async function readCommerceSnapshot(organizationId: string) {
+export async function readCommerceSnapshot(organizationId: string, employeeId: string | null = null) {
   return inTransaction(async (client) => {
     const productRows = await queryAll<ProductRow>(
       "SELECT id, name, category, sku, stock, price, cost, emoji, image_url, active FROM commerce_products WHERE organization_id = $1 ORDER BY lower(name), name",
       [organizationId], client,
     );
     const sales = await queryAll<SaleRow>(
-      "SELECT id, created_at, cash_session_id, total, received, change_amount FROM commerce_sales WHERE organization_id = $1 ORDER BY created_at DESC",
-      [organizationId], client,
+      "SELECT id, created_at, cash_session_id, total, received, change_amount FROM commerce_sales WHERE organization_id = $1 AND ($2::text IS NULL OR actor_user_id = $2) ORDER BY created_at DESC",
+      [organizationId, employeeId], client,
     );
     const saleLines = await queryAll<SaleLineRow>(
-      "SELECT l.sale_id, l.product_id, l.name, l.quantity, l.unit_price, l.unit_cost, l.position FROM commerce_sale_lines l INNER JOIN commerce_sales s ON s.id = l.sale_id WHERE s.organization_id = $1 ORDER BY l.sale_id, l.position",
-      [organizationId], client,
+      "SELECT l.sale_id, l.product_id, l.name, l.quantity, l.unit_price, l.unit_cost, l.position FROM commerce_sale_lines l INNER JOIN commerce_sales s ON s.id = l.sale_id WHERE s.organization_id = $1 AND ($2::text IS NULL OR s.actor_user_id = $2) ORDER BY l.sale_id, l.position",
+      [organizationId, employeeId], client,
     );
     const expenseRows = await queryAll<ExpenseRow>(
-      "SELECT id, created_at, cash_session_id, description, category, amount FROM commerce_expenses WHERE organization_id = $1 ORDER BY created_at DESC",
-      [organizationId], client,
+      "SELECT id, created_at, cash_session_id, description, category, amount FROM commerce_expenses WHERE organization_id = $1 AND ($2::text IS NULL OR actor_user_id = $2) ORDER BY created_at DESC",
+      [organizationId, employeeId], client,
     );
     const cashSessionRows = await queryAll<CashSessionRow>(
       `SELECT s.id, s.device_id, s.opened_by, opener.name AS opened_by_name, s.opened_at,
               s.opening_amount, s.status, s.closed_by, closer.name AS closed_by_name,
-              s.closed_at, s.expected_amount, s.counted_amount, s.difference_amount
+              s.closed_at, s.expected_amount, s.counted_amount, s.difference_amount,
+              COALESCE((SELECT json_agg(json_build_object('id', p.id, 'name', r.name, 'amount', p.amount, 'createdAt', p.created_at))
+                FROM commerce_reseller_receipts p
+                JOIN commerce_resellers r ON r.id = p.reseller_id AND r.organization_id = p.organization_id
+                WHERE p.cash_session_id = s.id AND $2::text IS NULL), '[]'::json) AS reseller_receipts
        FROM commerce_cash_sessions s
        LEFT JOIN "user" opener ON opener.id = s.opened_by
        LEFT JOIN "user" closer ON closer.id = s.closed_by
-       WHERE s.organization_id = $1
+       WHERE s.organization_id = $1 AND ($2::text IS NULL OR s.opened_by = $2)
        ORDER BY s.opened_at DESC`,
-      [organizationId], client,
+      [organizationId, employeeId], client,
     );
-    const conflictRows = await queryAll<ConflictRow>(
+    const conflictRows = employeeId ? [] : await queryAll<ConflictRow>(
       "SELECT id, sale_id, product_id, product_name, device_id, quantity_sold, stock_before, stock_after, created_at FROM stock_conflicts WHERE organization_id = $1 AND resolved_at IS NULL ORDER BY created_at DESC",
       [organizationId], client,
     );
@@ -274,10 +281,10 @@ type CashSessionWriteRow = SqlRow & {
   counted_amount: number | string | null;
 };
 
-async function lockCashSessionForOperation(sessionId: string, organizationId: string, deviceId: string, client: SqlExecutor) {
+async function lockCashSessionForOperation(sessionId: string, actor: CommerceActor, deviceId: string, client: SqlExecutor) {
   const session = await queryOne<CashSessionWriteRow>(
-    "SELECT id, device_id, opening_amount, status, counted_amount FROM commerce_cash_sessions WHERE id = $1 AND organization_id = $2 FOR UPDATE",
-    [sessionId, organizationId], client,
+    "SELECT id, device_id, opening_amount, status, counted_amount FROM commerce_cash_sessions WHERE id = $1 AND organization_id = $2 AND ($3::text IS NULL OR opened_by = $3) FOR UPDATE",
+    [sessionId, actor.organizationId, actor.role === "collaborator" ? actor.id : null], client,
   );
   if (!session) throw new Error("A sessão de caixa da operação não existe nesta loja.");
   if (session.device_id !== deviceId) throw new Error("A sessão de caixa pertence a outro dispositivo.");
@@ -288,7 +295,8 @@ async function recalculateClosedCashSession(session: CashSessionWriteRow, client
   if (session.status !== "closed" || session.counted_amount === null) return;
   const totals = await queryOne<SqlRow & { sales_total: number | string; expenses_total: number | string }>(
     `SELECT
-       COALESCE((SELECT SUM(total) FROM commerce_sales WHERE cash_session_id = $1), 0) AS sales_total,
+       COALESCE((SELECT SUM(total) FROM commerce_sales WHERE cash_session_id = $1), 0)
+       + COALESCE((SELECT SUM(amount) FROM commerce_reseller_receipts WHERE cash_session_id = $1), 0) AS sales_total,
        COALESCE((SELECT SUM(amount) FROM commerce_expenses WHERE cash_session_id = $1), 0) AS expenses_total`,
     [session.id], client,
   );
@@ -305,11 +313,14 @@ async function recalculateClosedCashSession(session: CashSessionWriteRow, client
 
 async function ensureActorMembership(actorId: string, actor: CommerceActor, client: SqlExecutor) {
   if (actorId !== actor.id) throw new Error("Entre na conta que registou estas operações para sincronizar.");
-  const member = await queryOne<SqlRow>(
-    'SELECT id FROM "user" WHERE id = $1 AND organization_id = $2 AND store_role IS NOT NULL AND banned IS NOT TRUE',
-    [actorId, actor.organizationId], client,
+  const member = await queryOne<SqlRow & { store_permissions: StorePermission[] }>(
+    `SELECT u.store_permissions FROM "user" u JOIN organizations o ON o.id = u.organization_id
+     WHERE u.id = $1 AND u.organization_id = $2 AND u.store_role = $3 AND u.banned IS NOT TRUE
+     AND o.status = 'active' AND 'commerce' = ANY(o.enabled_modules) FOR SHARE OF u, o`,
+    [actorId, actor.organizationId, actor.role], client,
   );
   if (!member) throw new Error("O utilizador de origem já não tem acesso a esta loja.");
+  return member.store_permissions;
 }
 
 type ProcessedResult = { conflicts?: StockConflict[] };
@@ -317,10 +328,10 @@ type SyncResult =
   | { id: string; status: "duplicate" | "accepted" | "conflict"; conflicts: StockConflict[] }
   | { id: string; status: "rejected"; error: string; retryable: boolean };
 
-async function getProcessedResult(id: string, organizationId: string, client?: SqlExecutor) {
+async function getProcessedResult(id: string, actor: CommerceActor, client?: SqlExecutor) {
   const previous = await queryOne<SqlRow & { result_json: string }>(
-    "SELECT result_json FROM processed_sync_operations WHERE id = $1 AND organization_id = $2",
-    [id, organizationId], client,
+    "SELECT result_json FROM processed_sync_operations WHERE id = $1 AND organization_id = $2 AND actor_user_id = $3",
+    [id, actor.organizationId, actor.id], client,
   );
   if (!previous) return null;
   return JSON.parse(previous.result_json) as ProcessedResult;
@@ -328,7 +339,7 @@ async function getProcessedResult(id: string, organizationId: string, client?: S
 
 async function applyOperation(operation: SyncOperation, actor: CommerceActor): Promise<SyncResult> {
   try {
-    const previous = await getProcessedResult(operation.id, actor.organizationId);
+    const previous = await getProcessedResult(operation.id, actor);
     if (previous) return { id: operation.id, status: "duplicate", conflicts: previous.conflicts ?? [] };
 
     const result = await inTransaction(async (client) => {
@@ -343,17 +354,20 @@ async function applyOperation(operation: SyncOperation, actor: CommerceActor): P
       );
 
       if (!claim.rowCount) {
-        const duplicate = await getProcessedResult(operation.id, actor.organizationId, client);
+        const duplicate = await getProcessedResult(operation.id, actor, client);
         if (!duplicate) throw new Error("O identificador da operação já foi utilizado noutra loja.");
         return { conflicts: duplicate.conflicts ?? [], duplicate: true };
       }
 
-      await ensureActorMembership(operation.actorId, actor, client);
+      const permissions = await ensureActorMembership(operation.actorId, actor, client);
       const conflicts: StockConflict[] = [];
 
       if (operation.type === "product.save") {
-        if (actor.role !== "admin") throw new Error("Só um administrador pode alterar produtos.");
+        if (!hasStorePermission({ role: actor.role, permissions }, "products:write")) {
+          throw new Error("A sua conta não tem permissão para alterar produtos.");
+        }
         const product = operation.payload;
+        const canManageCosts = actor.role === "admin";
         if (product.imageUrl) {
           const config = cloudinaryConfig();
           if (!config || !z.uuid().safeParse(product.id).success || product.imageUrl !== productImageUrl(config.cloud, productImageId(actor.organizationId, product.id))) {
@@ -372,13 +386,13 @@ async function applyOperation(operation: SyncOperation, actor: CommerceActor): P
         );
         if (existing) {
           await execute(
-            "UPDATE commerce_products SET name = $1, category = $2, sku = $3, price = $4, cost = $5, emoji = $6, updated_at = $7, image_url = COALESCE($10, image_url), active = COALESCE($11, active) WHERE id = $8 AND organization_id = $9",
-            [product.name, product.category, product.sku, product.price, product.cost, product.emoji, operation.createdAt, product.id, actor.organizationId, product.imageUrl ?? null, product.active ?? null], client,
+            "UPDATE commerce_products SET name = $1, category = $2, sku = $3, price = $4, cost = COALESCE($5, cost), emoji = $6, updated_at = $7, image_url = COALESCE($10, image_url), active = COALESCE($11, active) WHERE id = $8 AND organization_id = $9",
+            [product.name, product.category, product.sku, product.price, canManageCosts ? product.cost : null, product.emoji, operation.createdAt, product.id, actor.organizationId, product.imageUrl ?? null, product.active ?? null], client,
           );
         } else {
           await execute(
             "INSERT INTO commerce_products (id, organization_id, name, category, sku, stock, price, cost, emoji, updated_at, image_url, active) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
-            [product.id, actor.organizationId, product.name, product.category, product.sku, product.stock, product.price, product.cost, product.emoji, operation.createdAt, product.imageUrl ?? null, product.active ?? true], client,
+            [product.id, actor.organizationId, product.name, product.category, product.sku, product.stock, product.price, canManageCosts ? product.cost : 0, product.emoji, operation.createdAt, product.imageUrl ?? null, product.active ?? true], client,
           );
           if (product.stock > 0) {
             await execute(
@@ -391,7 +405,7 @@ async function applyOperation(operation: SyncOperation, actor: CommerceActor): P
         const sale = operation.payload;
         assertSaleAmounts(sale);
         const cashSession = sale.cashSessionId
-          ? await lockCashSessionForOperation(sale.cashSessionId, actor.organizationId, operation.deviceId, client)
+          ? await lockCashSessionForOperation(sale.cashSessionId, actor, operation.deviceId, client)
           : null;
         await execute(
           "INSERT INTO commerce_sales (id, organization_id, actor_user_id, device_id, created_at, cash_session_id, total, received, change_amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
@@ -446,7 +460,7 @@ async function applyOperation(operation: SyncOperation, actor: CommerceActor): P
       } else if (operation.type === "expense.create") {
         const expense = operation.payload;
         const cashSession = expense.cashSessionId
-          ? await lockCashSessionForOperation(expense.cashSessionId, actor.organizationId, operation.deviceId, client)
+          ? await lockCashSessionForOperation(expense.cashSessionId, actor, operation.deviceId, client)
           : null;
         await execute(
           "INSERT INTO commerce_expenses (id, organization_id, actor_user_id, device_id, created_at, cash_session_id, description, category, amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
@@ -459,11 +473,12 @@ async function applyOperation(operation: SyncOperation, actor: CommerceActor): P
           [operation.payload.id, actor.organizationId, operation.deviceId, operation.actorId, operation.createdAt, operation.payload.openingAmount], client,
         );
       } else {
-        const session = await lockCashSessionForOperation(operation.payload.id, actor.organizationId, operation.deviceId, client);
+        const session = await lockCashSessionForOperation(operation.payload.id, actor, operation.deviceId, client);
         if (session.status !== "open") throw new Error("Esta sessão de caixa já está fechada.");
         const totals = await queryOne<SqlRow & { sales_total: number | string; expenses_total: number | string }>(
           `SELECT
-             COALESCE((SELECT SUM(total) FROM commerce_sales WHERE cash_session_id = $1), 0) AS sales_total,
+             COALESCE((SELECT SUM(total) FROM commerce_sales WHERE cash_session_id = $1), 0)
+             + COALESCE((SELECT SUM(amount) FROM commerce_reseller_receipts WHERE cash_session_id = $1), 0) AS sales_total,
              COALESCE((SELECT SUM(amount) FROM commerce_expenses WHERE cash_session_id = $1), 0) AS expenses_total`,
           [session.id], client,
         );
@@ -497,7 +512,7 @@ async function applyOperation(operation: SyncOperation, actor: CommerceActor): P
     const safeMessages = [
       "O utilizador de origem já não tem acesso a esta loja.",
       "Entre na conta que registou estas operações para sincronizar.",
-      "Só um administrador pode alterar produtos.",
+      "A sua conta não tem permissão para alterar produtos.",
       "Já existe um produto com esse código nesta loja.",
       "Valores da venda não correspondem aos artigos e ao troco.",
       "Um produto da venda já não existe nesta loja.",

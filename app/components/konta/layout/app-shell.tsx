@@ -1,3 +1,4 @@
+import { hasStorePermission } from "@/app/lib/store-permissions";
 import { useState, useSyncExternalStore, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import Image from "next/image";
 import type { CommerceProfile } from "../../../lib/model";
@@ -63,7 +64,9 @@ export function AppShell({
   const [sidebarOverride, setSidebarOverride] = useState<boolean | null>(null);
   const isTablet = useSyncExternalStore(subscribeToTabletQuery, getTabletQuerySnapshot, getTabletQueryServerSnapshot);
   const sidebarCollapsed = sidebarOverride ?? isTablet;
-  const visibleNav = navItems.filter((item) => profile.role === "admin" || item.id !== "relatorios");
+  const visibleNav = navItems.filter((item) =>
+    (item.id !== "relatorios" || hasStorePermission(profile, "revenue:read")) &&
+    (item.id !== "revendedores" || (profile.isOwner && profile.role === "admin")));
   const syncNeedsAttention = /falh|divergência|expirad|indisponível/i.test(syncMessage);
   // Sucesso: um único aviso para a sessão. Problemas: um por mensagem, para não esconder um erro novo.
   const syncNoticeKey = syncNeedsAttention ? syncMessage : "ok";
@@ -104,7 +107,7 @@ export function AppShell({
           {visibleNav.map((item) => {
             // Este item mostra o nome da loja; o estado da ligação pulsa ao lado.
             const isStore = item.id === "loja";
-            const label = isStore ? storeName : item.label;
+            const label = isStore ? storeName : item.id === "relatorios" && profile.role === "collaborator" ? "Faturação" : item.label;
             return (
               <a key={item.id} href={sectionPaths[item.id]} className={`nav-button ${section === item.id ? "is-active" : ""}`} onClick={(event) => followSectionLink(event, item.id)} title={isStore ? `${label} · ${connectionDetail}` : sidebarCollapsed ? label : undefined} aria-current={section === item.id ? "page" : undefined}>
                 <span className="nav-icon"><Icon name={item.icon} size={21} /></span>

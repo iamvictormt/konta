@@ -3,12 +3,14 @@ import "server-only";
 import { auth } from "./auth";
 import { queryOne, type SqlRow } from "./db";
 import type { StoreModuleId } from "../store-modules";
+import type { StorePermission } from "../store-permissions";
 
 export type CommerceActor = {
   id: string;
   name: string;
   email: string;
   role: "admin" | "collaborator";
+  permissions: StorePermission[];
   organizationId: string;
   enabledModules: StoreModuleId[];
   isOwner: boolean;
@@ -29,11 +31,12 @@ export async function getStoreActor(headers: Headers): Promise<CommerceActor | n
     email: string;
     role: string | null;
     store_role: string | null;
+    store_permissions: StorePermission[];
     is_store_owner: boolean;
     status: string;
     enabled_modules: StoreModuleId[];
   }>(
-    `SELECT u.organization_id, u.name, u.email, u.role, u.store_role, u.is_store_owner,
+    `SELECT u.organization_id, u.name, u.email, u.role, u.store_role, u.store_permissions, u.is_store_owner,
             o.status, o.enabled_modules
      FROM "user" u
      INNER JOIN organizations o ON o.id = u.organization_id
@@ -47,6 +50,7 @@ export async function getStoreActor(headers: Headers): Promise<CommerceActor | n
     name: currentUser.name,
     email: currentUser.email,
     role: currentUser.store_role === "admin" ? "admin" : "collaborator",
+    permissions: currentUser.store_permissions,
     organizationId: currentUser.organization_id,
     enabledModules: currentUser.enabled_modules,
     isOwner: currentUser.is_store_owner,

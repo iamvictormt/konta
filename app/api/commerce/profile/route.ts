@@ -28,6 +28,7 @@ export async function GET(request: Request) {
       name: actor.name,
       email: actor.email,
       role: actor.role,
+      permissions: actor.permissions,
       organizationId: actor.organizationId,
       enabledModules: organization.enabled_modules,
       isOwner: actor.isOwner,

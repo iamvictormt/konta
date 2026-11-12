@@ -225,8 +225,13 @@ export async function PATCH(request: Request) {
             client,
           );
         }
-        await execute('DELETE FROM "session" WHERE "userId" = $1', [owner.id], client);
       }
+    }
+    if (!parsed.data.active) {
+      await execute(
+        'DELETE FROM "session" WHERE "userId" IN (SELECT id FROM "user" WHERE organization_id = $1 AND store_role IS NOT NULL)',
+        [store.id], client,
+      );
     }
     return { changed: true as const };
   });

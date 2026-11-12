@@ -9,7 +9,7 @@ export async function GET(request: Request) {
       return Response.json({ error: { code: "UNAUTHENTICATED", message: "Inicie sessão para carregar os dados da loja." } }, { status: 401, headers: { "Cache-Control": "no-store" } });
     }
 
-    const data = await readCommerceSnapshot(actor.organizationId);
+    const data = await readCommerceSnapshot(actor.organizationId, actor.role === "collaborator" ? actor.id : null);
     const organization = await queryOne<SqlRow & { name: string; currency_code: string; enabled_modules: typeof actor.enabledModules }>(
       "SELECT name, currency_code, enabled_modules FROM organizations WHERE id = $1 AND status = 'active'",
       [actor.organizationId],
@@ -30,6 +30,7 @@ export async function GET(request: Request) {
         name: actor.name,
         email: actor.email,
         role: actor.role,
+        permissions: actor.permissions,
         organizationId: actor.organizationId,
         enabledModules: actor.enabledModules,
         isOwner: actor.isOwner,

@@ -23,7 +23,7 @@ function formatBytes(bytes: number) {
   return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-export function ProductModal({ product, onClose, onSave }: { product?: Product; onClose: () => void; onSave: (product: Omit<Product, "id">, photo?: { file: File; productId: string }) => Promise<void> }) {
+export function ProductModal({ product, canManageCosts, onClose, onSave }: { product?: Product; canManageCosts: boolean; onClose: () => void; onSave: (product: Omit<Product, "id">, photo?: { file: File; productId: string }) => Promise<void> }) {
   const [name, setName] = useState(product?.name ?? "");
   const [sku, setSku] = useState(product?.sku ?? "");
   const [category, setCategory] = useState(product?.category ?? "Geral");
@@ -117,7 +117,7 @@ export function ProductModal({ product, onClose, onSave }: { product?: Product; 
       <FormField id="product-sku" label="Código"><input id="product-sku" value={sku} onChange={(event) => setSku(event.target.value)} placeholder="Gerado se vazio" /></FormField>
       <FormField id="product-category" label="Categoria"><input id="product-category" required value={category} onChange={(event) => setCategory(event.target.value)} /></FormField>
       <FormField id="product-price" label="Preço de venda (Db)"><MaskedNumberInput id="product-price" required minValue={product ? 0 : 1} value={price} onValueChange={setPrice} /></FormField>
-      <FormField id="product-cost" label="Custo (Db)"><MaskedNumberInput id="product-cost" required minValue={0} value={cost} onValueChange={setCost} /></FormField>
+      {canManageCosts && <FormField id="product-cost" label="Custo (Db)"><MaskedNumberInput id="product-cost" required minValue={0} value={cost} onValueChange={setCost} /></FormField>}
       {!product && <FormField id="product-stock" label="Stock inicial"><MaskedNumberInput id="product-stock" minValue={0} value={stock} onValueChange={setStock} /></FormField>}
       {product && <label className="form-field full product-status"><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />Disponível para venda</label>}
     </div><div className="modal-actions"><button className="button button-ghost" type="button" onClick={onClose} disabled={busy}>Cancelar</button><button className="button button-primary" type="submit" disabled={busy || !!photoError}>{busy ? "A guardar…" : "Guardar produto"}</button></div></form>

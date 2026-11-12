@@ -5,8 +5,10 @@ import { PageHeading } from "../shared/page-heading";
 import { StockConflictRow } from "./stock-conflict-row";
 import { StoreDetailsEditor } from "./store-details-editor";
 import { EmailChangeEditor } from "./email-change-editor";
+import { TeamPanel } from "./team-panel";
 
 type SettingsViewProps = {
+  notify: (message: string) => void;
   profile: CommerceProfile;
   storeName: string;
   online: boolean;
@@ -24,6 +26,7 @@ type SettingsViewProps = {
 };
 
 export function SettingsView({
+  notify,
   profile,
   storeName,
   online,
@@ -49,9 +52,8 @@ export function SettingsView({
         <div className="setting-line"><span>Moeda de apresentação</span><strong>Db</strong></div>
         <div className="setting-line"><span>País</span><strong>Por definir</strong></div>
         <div className="setting-line"><span>Módulos activos</span><strong>{profile.enabledModules.map((moduleId) => STORE_MODULES.find((module) => module.id === moduleId)?.label ?? moduleId).join(" · ")}</strong></div>
-        <div className="setting-line"><span>Proprietário</span><strong>{profile.name}</strong></div>
+        <div className="setting-line"><span>{profile.isOwner ? "Proprietário" : "Funcionário"}</span><strong>{profile.name}</strong></div>
         <div className="setting-line"><span>Utilizador de acesso</span><strong>{profile.email}</strong></div>
-        <p>A loja tem uma única conta proprietária. O administrador da Kontá gere os módulos e o estado do acesso.</p>
         {profile.isOwner && <div className="settings-account-actions">
           <StoreDetailsEditor storeName={storeName} ownerName={profile.name} online={online} onSave={onSaveDetails} />
           <EmailChangeEditor onSave={onSaveEmail} currentEmail={profile.email} online={online} />
@@ -78,6 +80,7 @@ export function SettingsView({
         </div>}
       </section>
     </div>
+    {profile.isOwner && profile.role === "admin" && <TeamPanel online={online} notify={notify} />}
     {stockConflicts.length > 0 && <section className="panel stock-conflicts-panel">
       <div className="panel-header"><div><h2 className="panel-title">Divergências de stock</h2><p className="panel-subtitle">As vendas offline foram guardadas, embora o stock disponível tenha sido excedido. O administrador reconcilia o saldo após a contagem física.</p></div></div>
       <div className="stock-conflicts-list">{stockConflicts.map((conflict) => <StockConflictRow key={conflict.id} conflict={conflict} canResolve={profile.role === "admin"} online={online} onResolved={onRefresh} />)}</div>

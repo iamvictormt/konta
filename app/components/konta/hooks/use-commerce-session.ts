@@ -11,6 +11,7 @@ import {
   loadOfflineProfile,
   loadStoreName,
   markOperationFailed,
+  offlineScope,
   markOperationsSynced,
   replaceWithServerSnapshot,
   resetFailedOperations,
@@ -43,13 +44,13 @@ export function useCommerceSession(notify: (message: string) => void) {
   const syncCompletion = useRef(new Map<string, Promise<void>>());
   const savingDetails = useRef(false);
 
-  const refreshLocalData = useCallback(async (organizationId: string) => {
+  const refreshLocalData = useCallback(async (scope: string) => {
     const [loaded, count, operations] = await Promise.all([
-      loadCommerceData(organizationId),
-      getPendingOperationCount(organizationId),
-      getSyncOperations(true, organizationId),
+      loadCommerceData(scope),
+      getPendingOperationCount(scope),
+      getSyncOperations(true, scope),
     ]);
-    if (profileRef.current?.organizationId !== organizationId) return;
+    if (!profileRef.current || offlineScope(profileRef.current) !== scope) return;
     setData(loaded);
     setPendingCount(count);
     setFailedOperations(operations.filter((operation) => operation.state === "failed"));
@@ -59,9 +60,10 @@ export function useCommerceSession(notify: (message: string) => void) {
     const activeProfile = profileRef.current;
     if (!activeProfile?.enabledModules.includes("commerce")) return;
     try {
-      setPendingCount(await getPendingOperationCount(activeProfile.organizationId));
+      const count = await getPendingOperationCount(offlineScope(activeProfile));
+      if (profileRef.current?.id === activeProfile.id) setPendingCount(count);
     } catch {
-      if (profileRef.current?.organizationId === activeProfile.organizationId) setStorageError("Não foi possível ler a fila local.");
+      if (profileRef.current?.id === activeProfile.id) setStorageError("Não foi possível ler a fila local.");
     }
   }, []);
 
@@ -88,16 +90,17 @@ export function useCommerceSession(notify: (message: string) => void) {
     setDeviceId("");
     setPendingCount(0);
     setFailedOperations([]);
-    await selectOfflineOrganization(nextProfile.organizationId);
+    const scope = offlineScope(nextProfile);
+    await selectOfflineOrganization(scope);
 
     if (nextProfile.enabledModules.includes("commerce")) {
-      await adoptLegacyOperations(nextProfile.id, nextProfile.organizationId);
+      if (nextProfile.role === "admin") await adoptLegacyOperations(nextProfile.id, scope);
       const [localData, count, operations, localDeviceId, cachedStoreName] = await Promise.all([
-        loadCommerceData(nextProfile.organizationId),
-        getPendingOperationCount(nextProfile.organizationId),
-        getSyncOperations(true, nextProfile.organizationId),
-        getDeviceId(nextProfile.organizationId),
-        loadStoreName(nextProfile.organizationId),
+        loadCommerceData(scope),
+        getPendingOperationCount(scope),
+        getSyncOperations(true, scope),
+        getDeviceId(scope),
+        loadStoreName(scope),
       ]);
       setData(localData);
       setPendingCount(count);
@@ -105,13 +108,13 @@ export function useCommerceSession(notify: (message: string) => void) {
       setDeviceId(localDeviceId);
       const nextStoreName = serverStoreName || cachedStoreName;
       setStoreName(nextStoreName);
-      if (serverStoreName) await saveStoreName(serverStoreName, nextProfile.organizationId);
+      if (serverStoreName) await saveStoreName(serverStoreName, scope);
     } else {
       setData(EMPTY_COMMERCE_DATA);
       setPendingCount(0);
-      const cachedStoreName = await loadStoreName(nextProfile.organizationId);
+      const cachedStoreName = await loadStoreName(scope);
       setStoreName(serverStoreName || cachedStoreName);
-      if (serverStoreName) await saveStoreName(serverStoreName, nextProfile.organizationId);
+      if (serverStoreName) await saveStoreName(serverStoreName, scope);
     }
 
     if (refreshOfflineSession) await saveOfflineProfile(nextProfile);
@@ -121,22 +124,22 @@ export function useCommerceSession(notify: (message: string) => void) {
   }, []);
 
   const syncNow = useCallback(async (activeProfile: CommerceProfile, includeFailed = false) => {
-    const organizationId = activeProfile.organizationId;
-    if (!navigator.onLine || savingDetails.current || !activeProfile.enabledModules.includes("commerce") || syncsInProgress.current.has(organizationId)) return;
-    if (profileRef.current?.id !== activeProfile.id || !isOfflineOrganizationActive(organizationId)) return;
+    const scope = offlineScope(activeProfile);
+    if (!navigator.onLine || savingDetails.current || !activeProfile.enabledModules.includes("commerce") || syncsInProgress.current.has(scope)) return;
+    if (profileRef.current?.id !== activeProfile.id || !isOfflineOrganizationActive(scope)) return;
 
     const controller = new AbortController();
-    syncAbortControllers.current.set(organizationId, controller);
-    syncsInProgress.current.add(organizationId);
+    syncAbortControllers.current.set(scope, controller);
+    syncsInProgress.current.add(scope);
     let finishSync!: () => void;
     const completion = new Promise<void>((resolve) => { finishSync = resolve; });
-    syncCompletion.current.set(organizationId, completion);
+    syncCompletion.current.set(scope, completion);
     const isCurrentProfile = () => profileRef.current?.id === activeProfile.id
-      && profileRef.current.organizationId === organizationId;
+      && offlineScope(profileRef.current) === scope;
     setSyncMessage("A sincronizar…");
     try {
-      if (includeFailed) await resetFailedOperations(organizationId);
-      const queuedOperations = await getSyncOperations(true, organizationId);
+      if (includeFailed) await resetFailedOperations(scope);
+      const queuedOperations = await getSyncOperations(true, scope);
       const firstFailedIndex = queuedOperations.findIndex((operation) => operation.state === "failed");
       const queueBlockedByFailure = firstFailedIndex !== -1;
       const operations = queueBlockedByFailure ? queuedOperations.slice(0, firstFailedIndex) : queuedOperations;
@@ -168,18 +171,18 @@ export function useCommerceSession(notify: (message: string) => void) {
             acceptedIds.push(item.id);
             newConflicts.push(...(item.conflicts ?? []));
           } else if (!item.retryable) {
-            await markOperationFailed(item.id, item.error ?? "Operação rejeitada pelo servidor.", organizationId);
+            await markOperationFailed(item.id, item.error ?? "Operação rejeitada pelo servidor.", scope);
             rejectedCount += 1;
           } else {
             retryableCount += 1;
           }
         }
-        await markOperationsSynced(acceptedIds, organizationId);
+        await markOperationsSynced(acceptedIds, scope);
         if (newConflicts.length > 0) {
-          const current = await loadCommerceData(organizationId);
+          const current = await loadCommerceData(scope);
           const merged = new Map(current.stockConflicts.map((conflict) => [conflict.id, conflict]));
           for (const conflict of newConflicts) merged.set(conflict.id, conflict);
-          await saveStockConflicts([...merged.values()], organizationId);
+          await saveStockConflicts([...merged.values()], scope);
         }
         if (isCurrentProfile()) setLastSyncAt(result.syncedAt);
       }
@@ -195,14 +198,19 @@ export function useCommerceSession(notify: (message: string) => void) {
         } else throw new Error("As operações foram enviadas, mas não foi possível atualizar o catálogo.");
       } else {
         const snapshot = await snapshotResponse.json() as { data: CommerceData; syncedAt: string; profile: CommerceProfile; organization?: { name: string } };
-        await replaceWithServerSnapshot(snapshot.data, organizationId);
-        if (snapshot.profile.id === activeProfile.id && isCurrentProfile()) {
+        if (snapshot.profile.id !== activeProfile.id || offlineScope(snapshot.profile) !== scope) {
+          if (isCurrentProfile()) await invalidateProfile();
+          return;
+        }
+        if (!isCurrentProfile()) return;
+        await replaceWithServerSnapshot(snapshot.data, scope);
+        if (isCurrentProfile()) {
           profileRef.current = snapshot.profile;
           setProfile(snapshot.profile);
           await saveOfflineProfile(snapshot.profile);
         }
         if (snapshot.organization?.name) {
-          await saveStoreName(snapshot.organization.name, organizationId);
+          await saveStoreName(snapshot.organization.name, scope);
           if (isCurrentProfile()) setStoreName(snapshot.organization.name);
         }
         if (isCurrentProfile()) {
@@ -220,15 +228,15 @@ export function useCommerceSession(notify: (message: string) => void) {
                     : "Dados sincronizados.");
         }
       }
-      if (isCurrentProfile()) await refreshLocalData(organizationId);
+      if (isCurrentProfile()) await refreshLocalData(scope);
     } catch (error) {
       if (!controller.signal.aborted && isCurrentProfile()) {
         setSyncMessage(error instanceof Error ? error.message : "Falha de sincronização. Os registos locais foram preservados.");
       }
     } finally {
-      if (syncAbortControllers.current.get(organizationId) === controller) syncAbortControllers.current.delete(organizationId);
-      syncsInProgress.current.delete(organizationId);
-      if (syncCompletion.current.get(organizationId) === completion) syncCompletion.current.delete(organizationId);
+      if (syncAbortControllers.current.get(scope) === controller) syncAbortControllers.current.delete(scope);
+      syncsInProgress.current.delete(scope);
+      if (syncCompletion.current.get(scope) === completion) syncCompletion.current.delete(scope);
       finishSync();
     }
   }, [invalidateProfile, refreshLocalData]);
@@ -239,8 +247,8 @@ export function useCommerceSession(notify: (message: string) => void) {
     if (savingDetails.current) throw new Error("Já existe uma alteração em curso.");
     savingDetails.current = true;
     try {
-      syncAbortControllers.current.get(current.organizationId)?.abort();
-      await syncCompletion.current.get(current.organizationId);
+      syncAbortControllers.current.get(offlineScope(current))?.abort();
+      await syncCompletion.current.get(offlineScope(current));
       if (profileRef.current?.id !== current.id || profileRef.current.organizationId !== current.organizationId) throw new Error("A sessão mudou. Entre novamente e tente guardar.");
       const response = await fetch("/api/commerce/settings", {
         method: "PATCH",
@@ -256,7 +264,7 @@ export function useCommerceSession(notify: (message: string) => void) {
       setProfile(updatedProfile);
       if (result.storeName) setStoreName(result.storeName);
       try {
-        await Promise.all([result.storeName && saveStoreName(result.storeName, current.organizationId), saveOfflineProfile(updatedProfile)]);
+        await Promise.all([result.storeName && saveStoreName(result.storeName, offlineScope(current)), saveOfflineProfile(updatedProfile)]);
       } catch {
         setStorageError("Os dados foram guardados no servidor, mas não foi possível actualizar a cópia local.");
       }

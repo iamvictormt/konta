@@ -27,6 +27,7 @@ export function useCommerceOverview(data: CommerceData | null, deviceId: string,
     .reduce((total, sale) => total + sale.total, 0), [sales, yesterday]);
   const cashBalance = activeCashSession
     ? activeCashSession.openingAmount
+      + (activeCashSession.resellerReceipts ?? []).reduce((total, receipt) => total + receipt.amount, 0)
       + activeSessionSales.reduce((total, sale) => total + sale.total, 0)
       - activeSessionExpenses.reduce((total, expense) => total + expense.amount, 0)
     : 0;

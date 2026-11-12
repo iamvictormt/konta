@@ -2437,3 +2437,118 @@ td {
     align-items: stretch;
   }
 }
+.store-team-header,
+.store-team-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.store-team-list {
+  display: grid;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.store-team-list li {
+  padding: 12px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.store-team-list li > div {
+  display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.store-team-form {
+  margin-block: 16px;
+}
+
+.employee-permissions {
+  flex: 1 1 100%;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 4px 0 0;
+  border: 0;
+}
+
+.employee-permissions legend {
+  font-size: .875rem;
+  font-weight: 600;
+}
+
+.employee-permissions label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.consignment-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.consignment-stack .consignment-summary {
+  margin-bottom: 0;
+}
+
+.consignment-stack > .cash-session-section {
+  margin-top: 0;
+}
+
+.consignment-heading .heading-actions {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.consignment-selector {
+  width: min(100%, 280px);
+  min-width: 0;
+}
+
+.panel-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 20px 16px;
+}
+
+@media (max-width: 650px) {
+  .consignment-heading .heading-actions .button {
+    flex: 1 1 160px;
+    padding-inline: 12px;
+    white-space: normal;
+  }
+
+  .consignment-stack > .panel > .panel-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .consignment-selector {
+    width: 100%;
+  }
+
+  .panel-action-row {
+    padding-inline: 14px;
+  }
+}
+
+.consignment-form {
+  display: grid;
+  gap: 12px;
+}
+
+.consignment-form-line {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}

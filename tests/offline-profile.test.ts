@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { IDBFactory } from "fake-indexeddb";
-import { clearOfflineProfile, loadOfflineProfile, saveOfflineProfile } from "../app/lib/offline-store";
+import { clearOfflineProfile, getDeviceId, getSyncOperations, loadCommerceData, loadOfflineProfile, offlineScope, saveOfflineProfile, saveProduct } from "../app/lib/offline-store";
 import type { CommerceProfile } from "../app/lib/model";
 
 const indexedDB = new IDBFactory();
@@ -77,4 +77,20 @@ test("legacy offline sessions retain their expiry and cannot return after sign-o
   const sevenDays = 7 * 24 * 60 * 60 * 1000;
   assert.ok(expiry >= beforeSave + sevenDays && expiry <= afterSave + sevenDays);
   assert.deepEqual(await loadOfflineProfile(), profile);
+});
+
+test("employees on the same browser cannot load the owner's or another employee's offline records", async () => {
+  const owner = { ...profile, organizationId: "team-test" };
+  const employee = { ...owner, id: "employee-1", role: "collaborator", isOwner: false } as const;
+  const otherEmployee = { ...employee, id: "employee-2" };
+  const ownerScope = offlineScope(owner);
+  const employeeScope = offlineScope(employee);
+  const product = { id: "product", name: "Produto", category: "Geral", sku: "P1", stock: 1, price: 10, cost: 4, emoji: "" };
+  await saveProduct(product, owner.id, ownerScope);
+
+  assert.equal((await loadCommerceData(ownerScope)).products[0].cost, 4);
+  assert.deepEqual((await loadCommerceData(employeeScope)).products, []);
+  assert.deepEqual(await getSyncOperations(true, employeeScope), []);
+  assert.equal((await getSyncOperations(true, ownerScope)).length, 1);
+  assert.notEqual(await getDeviceId(employeeScope), await getDeviceId(offlineScope(otherEmployee)));
 });

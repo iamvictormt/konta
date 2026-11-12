@@ -27,6 +27,12 @@ let activeOrganizationId: string | null = null;
 const databasePromises = new Map<string, Promise<IDBDatabase>>();
 let sessionDatabasePromise: Promise<IDBDatabase> | undefined;
 
+export function offlineScope(profile: Pick<CommerceProfile, "organizationId" | "id" | "role">) {
+  return profile.role === "admin"
+    ? profile.organizationId
+    : `employee:${JSON.stringify([profile.organizationId, profile.id])}`;
+}
+
 function requiredOrganizationId(organizationId = activeOrganizationId) {
   if (!organizationId) throw new Error("A loja não está seleccionada para o armazenamento offline.");
   return organizationId;

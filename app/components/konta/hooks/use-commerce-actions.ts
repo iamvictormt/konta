@@ -1,9 +1,11 @@
+import { hasStorePermission } from "@/app/lib/store-permissions";
 import type { Dispatch, SetStateAction } from "react";
 import {
   createId,
   saveCashSessionClose,
   saveCashSessionOpen,
   saveExpense,
+  offlineScope,
   saveProduct,
   saveSaleAndProducts,
 } from "../../../lib/offline-store";
@@ -54,7 +56,7 @@ export function useCommerceActions({
   const sales = data?.sales ?? [];
 
   async function saveCatalogProduct(product: Omit<Product, "id">, photo?: { file: File; productId: string }, editingId?: string) {
-    if (!profile || profile.role !== "admin") return;
+    if (!profile || !hasStorePermission(profile, "products:write")) return;
     if (!online) {
       notify("Os produtos só podem ser alterados quando a loja estiver online.");
       return;
@@ -81,11 +83,28 @@ export function useCommerceActions({
         if (!response.ok || !result.imageUrl) throw new Error(result.error ?? "Não foi possível carregar a foto.");
         record.imageUrl = result.imageUrl;
       }
-      await saveProduct(record, profile.id, profile.organizationId, Boolean(existing));
+      if (profile.role === "admin") {
+        await saveProduct(record, profile.id, offlineScope(profile), Boolean(existing));
+      } else {
+        const response = await fetch("/api/commerce/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ operations: [{
+            id: createId(), type: "product.save", actorId: profile.id, deviceId,
+            createdAt: new Date().toISOString(), payload: record,
+          }] }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        const result = await response.json() as { results?: { status: string; error?: string }[] };
+        const operation = result.results?.[0];
+        if (!response.ok || operation?.status !== "accepted") {
+          throw new Error(operation?.error ?? "Não foi possível guardar o produto no servidor.");
+        }
+      }
       setData((current) => current ? { ...current, products: existing ? current.products.map((item) => item.id === record.id ? { ...record, stock: item.stock } : item) : [record, ...current.products] } : current);
       await refreshPending();
       closeModal();
-      notify("Produto guardado neste dispositivo.");
+      notify(profile.role === "admin" ? "Produto guardado neste dispositivo." : "Produto guardado.");
       if (online) void syncNow(profile);
     } catch (error) {
       notify(error instanceof Error ? error.message : "Não foi possível guardar o produto.");
@@ -114,7 +133,7 @@ export function useCommerceActions({
       syncState: "pending",
     };
     try {
-      await saveCashSessionOpen(session, profile.id, profile.organizationId);
+      await saveCashSessionOpen(session, profile.id, offlineScope(profile));
       setData((current) => current ? { ...current, cashSessions: [session, ...current.cashSessions] } : current);
       await refreshPending();
       notify(online ? "Caixa aberto. A sessão foi guardada neste dispositivo." : "Caixa aberto offline. A sessão será sincronizada quando a ligação regressar.");
@@ -154,7 +173,7 @@ export function useCommerceActions({
       syncState: "pending",
     };
     try {
-      await saveCashSessionClose(closedSession, profile.id, profile.organizationId);
+      await saveCashSessionClose(closedSession, profile.id, offlineScope(profile));
       setData((current) => current ? {
         ...current,
         cashSessions: current.cashSessions.map((session) => session.id === closedSession.id ? closedSession : session),
@@ -181,7 +200,7 @@ export function useCommerceActions({
       syncState: "pending",
     };
     try {
-      await saveExpense(record, profile.id, profile.organizationId);
+      await saveExpense(record, profile.id, offlineScope(profile));
       setData((current) => current ? {
         ...current,
         expenses: [record, ...current.expenses],
@@ -228,7 +247,7 @@ export function useCommerceActions({
     };
 
     try {
-      await saveSaleAndProducts(sale, updatedProducts, profile.id, profile.organizationId);
+      await saveSaleAndProducts(sale, updatedProducts, profile.id, offlineScope(profile));
       setData({
         ...data,
         products: updatedProducts,

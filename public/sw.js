@@ -1,6 +1,6 @@
-const CACHE_NAME = "konta-shell-v4";
+const CACHE_NAME = "konta-shell-v5";
 const APP_SHELL = ["/login", "/loja", "/servicos", "/formacao", "/manifest.webmanifest", "/konta-icon.svg"];
-const STORE_ROUTES = new Set(["/login", "/loja", "/loja/vendas", "/loja/produtos", "/loja/relatorios", "/loja/caixa", "/loja/definicoes", "/servicos", "/formacao"]);
+const STORE_ROUTES = new Set(["/login", "/loja", "/loja/vendas", "/loja/produtos", "/loja/relatorios", "/loja/caixa", "/loja/definicoes", "/loja/revendedores", "/servicos", "/formacao"]);
 const LEGACY_ROUTES = {
   "/": "/login",
   "/vendas": "/loja/vendas",

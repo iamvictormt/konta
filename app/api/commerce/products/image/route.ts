@@ -1,3 +1,4 @@
+import { hasStorePermission } from "@/app/lib/store-permissions";
 import { z } from "zod";
 import { getCommerceActor } from "@/app/lib/server/actor";
 import { cloudinaryConfig, productImageId, productImageUrl } from "@/app/lib/server/product-images";
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
   const origin = new URL(process.env.BETTER_AUTH_URL ?? "http://localhost:3000").origin;
   if (request.headers.get("origin") !== origin) return Response.json({ error: "Pedido não autorizado." }, { status: 403 });
   const actor = await getCommerceActor(request.headers);
-  if (actor?.role !== "admin") return Response.json({ error: "Apenas administradores podem carregar fotos." }, { status: 403 });
+  if (!actor || !hasStorePermission(actor, "products:write")) return Response.json({ error: "A sua conta não tem permissão para carregar fotos." }, { status: 403 });
   const id = z.uuid().safeParse(new URL(request.url).searchParams.get("productId"));
   const type = request.headers.get("content-type") ?? "";
   if (!id.success || !imageTypes.has(type) || !request.body) {

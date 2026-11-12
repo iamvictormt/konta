@@ -10,6 +10,9 @@ import { AppShell } from "./layout/app-shell";
 import { ProductModal } from "./products/product-modal";
 import { ProductsView } from "./products/products-view";
 import { ReportsView } from "./reports/reports-view";
+import { RevenueView } from "./reports/revenue-view";
+import { ResellersView } from "./resellers/resellers-view";
+import { hasStorePermission } from "@/app/lib/store-permissions";
 import { SalesView } from "./sales/sales-view";
 import { SettingsView } from "./settings/settings-view";
 import { useCommerceActions } from "./hooks/use-commerce-actions";
@@ -49,7 +52,11 @@ export function CommerceWorkspace({ active, section, profile, session, onNavigat
     setModal({ kind: "new-product" });
   }
 
-  const visibleSection = profile.role === "admin" || section !== "relatorios" ? section : "inicio";
+  const canManageProducts = hasStorePermission(profile, "products:write");
+  const canViewRevenue = hasStorePermission(profile, "revenue:read");
+  const canManageResellers = profile.isOwner && profile.role === "admin";
+  const sectionAllowed = (section !== "relatorios" || canViewRevenue) && (section !== "revendedores" || canManageResellers);
+  const visibleSection = sectionAllowed ? section : "inicio";
   const overview = useCommerceOverview(data, deviceId, clientNow, chartRange, visibleSection === "inicio" ? chartProduct : "all");
   const {
     products,
@@ -121,7 +128,7 @@ export function CommerceWorkspace({ active, section, profile, session, onNavigat
       {visibleSection === "inicio" && <DashboardView
         now={clientNow}
         userName={profile.name}
-        canManageProducts={profile.role === "admin"}
+        canManageProducts={canManageProducts}
         products={products}
         salesTotal={salesTotal}
         yesterdaySalesTotal={yesterdaySalesTotal}
@@ -145,8 +152,16 @@ export function CommerceWorkspace({ active, section, profile, session, onNavigat
       {visibleSection === "produtos" && <ProductsView
         products={products}
         canViewCosts={profile.role === "admin"}
-        onAdd={profile.role === "admin" ? openNewProduct : undefined}
-        onEdit={profile.role === "admin" ? (productId) => setModal({ kind: "edit-product", productId }) : undefined}
+        onAdd={canManageProducts ? openNewProduct : undefined}
+        onEdit={canManageProducts ? (productId) => setModal({ kind: "edit-product", productId }) : undefined}
+      />}
+      {visibleSection === "revendedores" && canManageResellers && <ResellersView
+        online={online}
+        products={products}
+        deviceId={deviceId}
+        cash={activeCashSession}
+        notify={notify}
+        onRefreshCommerce={() => { void syncNow(profile); }}
       />}
       {visibleSection === "vendas" && <SalesView
         products={sellableProducts}
@@ -181,7 +196,11 @@ export function CommerceWorkspace({ active, section, profile, session, onNavigat
         chartRange={chartRange}
         onRangeChange={setChartRange}
       />}
+      {visibleSection === "relatorios" && profile.role === "collaborator" && (
+        <RevenueView key={String(online)} online={online} />
+      )}
       {visibleSection === "loja" && <SettingsView
+        notify={notify}
         profile={profile}
         storeName={storeName}
         online={online}
@@ -198,10 +217,11 @@ export function CommerceWorkspace({ active, section, profile, session, onNavigat
         onSaveEmail={(email) => updateStoreSettings({ email })}
       />}
     </AppShell>
-    {modal && modal.kind !== "expense" && profile.role === "admin" && (
+    {modal && modal.kind !== "expense" && canManageProducts && (
       <ProductModal
         key={editingProductId ?? "new"}
         product={products.find((product) => product.id === editingProductId)}
+        canManageCosts={profile.role === "admin"}
         onClose={closeModal}
         onSave={(product, photo) => commerceActions.saveCatalogProduct(product, photo, editingProductId)}
       />

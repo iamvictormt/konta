@@ -10,6 +10,7 @@ type MaskedNumberInputProps = Omit<
   value: string;
   onValueChange: (value: string) => void;
   minValue?: number;
+  maxValue?: number;
 };
 
 export function formatMaskedInteger(value: string) {
@@ -17,13 +18,16 @@ export function formatMaskedInteger(value: string) {
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
-function validationMessage(value: string, minValue?: number) {
+function validationMessage(value: string, minValue?: number, maxValue?: number) {
   if (value === "") return "";
 
   const amount = Number(value);
   if (!Number.isSafeInteger(amount)) return "Introduza um valor inteiro válido.";
   if (minValue !== undefined && amount < minValue) {
     return `O valor mínimo é ${formatMaskedInteger(String(minValue))}.`;
+  }
+  if (maxValue !== undefined && amount > maxValue) {
+    return `O valor máximo é ${formatMaskedInteger(String(maxValue))}.`;
   }
 
   return "";
@@ -45,16 +49,17 @@ export default function MaskedNumberInput({
   value,
   onValueChange,
   minValue,
+  maxValue,
   onBlur,
   onFocus,
   ...inputProps
 }: MaskedNumberInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const invalid = validationMessage(value, minValue) !== "";
+  const invalid = validationMessage(value, minValue, maxValue) !== "";
 
   useEffect(() => {
-    inputRef.current?.setCustomValidity(validationMessage(value, minValue));
-  }, [value, minValue]);
+    inputRef.current?.setCustomValidity(validationMessage(value, minValue, maxValue));
+  }, [value, minValue, maxValue]);
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget;
@@ -66,7 +71,7 @@ export default function MaskedNumberInput({
     const nextValue = digits.replace(/^0+(?=\d)/, "");
     const nextCursorDigitCount = Math.max(0, digitsBeforeCursor - leadingZeroCount);
 
-    input.setCustomValidity(validationMessage(nextValue, minValue));
+    input.setCustomValidity(validationMessage(nextValue, minValue, maxValue));
     onValueChange(nextValue);
 
     window.requestAnimationFrame(() => {
@@ -79,7 +84,7 @@ export default function MaskedNumberInput({
   }
 
   function handleBlur(event: FocusEvent<HTMLInputElement>) {
-    inputRef.current?.setCustomValidity(validationMessage(value, minValue));
+    inputRef.current?.setCustomValidity(validationMessage(value, minValue, maxValue));
     onBlur?.(event);
   }
 
